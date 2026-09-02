@@ -50,6 +50,8 @@ export default function Home() {
       sukuBunga: state.sukuBunga,
       diskonPreLaunching: state.diskonPreLaunching,
       dpPercent: state.dpPercent,
+      tierMode: state.tierMode,
+      tiers: state.tiers,
     });
     setResult(calc);
     void logSimulation(

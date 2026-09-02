@@ -57,7 +57,9 @@ export default function ResultsPanel({
             <p className="text-sm text-foreground-muted">Blok {unit.blok} · No. {unit.noUnit}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-foreground-muted">Estimasi Angsuran / Cicilan Bulanan</p>
+            <p className="text-xs text-foreground-muted">
+              {result.tierBreakdown ? "Estimasi Angsuran Awal" : "Estimasi Angsuran / Cicilan Bulanan"}
+            </p>
             <p className="font-brand text-3xl text-foreground">
               {result.angsuranBulananKpr !== null
                 ? formatRupiah(result.angsuranBulananKpr)
@@ -145,7 +147,50 @@ export default function ResultsPanel({
           />
         </SectionCard>
 
-        {result.pokokKpr !== null && (
+        {result.pokokKpr !== null && result.tierBreakdown && (
+          <SectionCard eyebrow="Section 5" title="KPR Breakdown (Berjenjang)">
+            <StatRow label="Pokok KPR" value={formatRupiah(result.pokokKpr)} />
+            <StatRow label="Tenor Total" value={`${result.tenorKprTahun} tahun`} />
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="text-xs text-foreground-muted">
+                    <th className="pb-1.5 font-medium">Tier</th>
+                    <th className="pb-1.5 font-medium">Durasi</th>
+                    <th className="pb-1.5 font-medium">
+                      {result.tierMode === "BUNGA" ? "Bunga" : "Kenaikan"}
+                    </th>
+                    <th className="pb-1.5 text-right font-medium">Angsuran/bln</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.tierBreakdown.map((t) => (
+                    <tr key={t.tierKe} className="border-t border-border">
+                      <td className="py-1.5 font-medium text-foreground">{t.tierKe}</td>
+                      <td className="py-1.5 text-foreground-muted">{t.durasiTahun.toFixed(1)} thn</td>
+                      <td className="py-1.5 text-foreground-muted">
+                        {result.tierMode === "BUNGA"
+                          ? formatPercent(t.nilai)
+                          : t.tierKe === 1
+                            ? "Basis"
+                            : `+${formatPercent(t.nilai)}`}
+                      </td>
+                      <td className="py-1.5 text-right font-semibold tabular-nums text-foreground">
+                        {formatRupiah(t.angsuranBulanan)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-xs text-foreground-muted">
+              *Nominal estimasi berdasarkan rumus anuitas standar — suku bunga &amp; persetujuan
+              akhir ditentukan oleh Bank pemberi KPR.
+            </p>
+          </SectionCard>
+        )}
+
+        {result.pokokKpr !== null && !result.tierBreakdown && (
           <SectionCard eyebrow="Section 5" title="KPR Breakdown">
             <StatRow label="Pokok KPR" value={formatRupiah(result.pokokKpr)} />
             <StatRow label="Tenor" value={`${result.tenorKprTahun} tahun`} />

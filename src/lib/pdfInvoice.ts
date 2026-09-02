@@ -140,7 +140,33 @@ export async function generateInvoicePdf(
   kv(termRows);
 
   // ---- Section 5: KPR Breakdown ----
-  if (result.pokokKpr !== null) {
+  if (result.pokokKpr !== null && result.tierBreakdown) {
+    sectionTitle("5. KPR Breakdown Berjenjang (Estimasi)");
+    kv([
+      ["Pokok KPR", formatRupiah(result.pokokKpr)],
+      ["Tenor Total", `${result.tenorKprTahun} tahun`],
+    ]);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [["Tier", "Durasi", result.tierMode === "BUNGA" ? "Bunga" : "Kenaikan", "Angsuran/bln"]],
+      body: result.tierBreakdown.map((t) => [
+        String(t.tierKe),
+        `${t.durasiTahun.toFixed(1)} thn`,
+        result.tierMode === "BUNGA"
+          ? formatPercent(t.nilai)
+          : t.tierKe === 1
+            ? "Basis"
+            : `+${formatPercent(t.nilai)}`,
+        formatRupiah(t.angsuranBulanan),
+      ]),
+      styles: { fontSize: 8.5, textColor: INK, cellPadding: 1.6 },
+      headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold" },
+      columnStyles: { 3: { halign: "right" } },
+      alternateRowStyles: { fillColor: [246, 244, 238] },
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4;
+  } else if (result.pokokKpr !== null) {
     sectionTitle("5. KPR Breakdown (Estimasi)");
     kv([
       ["Pokok KPR", formatRupiah(result.pokokKpr)],
