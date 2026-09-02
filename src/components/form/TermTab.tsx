@@ -7,6 +7,7 @@ import { getBertahapTenorBulan, getUnitById } from "@/lib/pricelist";
 import { TermOfPayment, getTermLabel } from "@/lib/kpr-calculator";
 import { Field, RadioCard, TextInput } from "@/components/ui";
 import { formatPercent, formatRupiah } from "@/lib/format";
+import TierEditor from "./TierEditor";
 
 export default function TermTab({
   state,
@@ -19,7 +20,15 @@ export default function TermTab({
 }) {
   const unit = state.unitId ? getUnitById(state.unitId) : undefined;
   const tenorBertahap = unit ? getBertahapTenorBulan(unit.cluster, unit.tipe) : null;
-  const requiresKprInput = state.term === "HARD_CASH" || state.term === "KPR_DP0";
+  const isBerjenjang = state.term === "KPR_BERJENJANG";
+  const isBerjenjangBunga = isBerjenjang && state.tierMode === "BUNGA";
+  const showDpEditor = state.term === "KPR_DP0" || isBerjenjang;
+  // Tenor total dipakai di semua skema KPR (termasuk kedua mode Berjenjang).
+  const tenorEnabled = state.term === "HARD_CASH" || state.term === "KPR_DP0" || isBerjenjang;
+  // Field suku bunga tunggal dipakai untuk Hard Cash, KPR DP Custom, dan mode
+  // Angsuran Berjenjang (satu rate tetap) — tapi TIDAK untuk mode Bunga
+  // Berjenjang, karena tiap tier punya suku bunganya sendiri di TierEditor.
+  const rateFieldEnabled = state.term === "HARD_CASH" || state.term === "KPR_DP0" || (isBerjenjang && !isBerjenjangBunga);
 
   const terms: { value: TermOfPayment; title: string; subtitle: string }[] = [
     {
@@ -36,6 +45,11 @@ export default function TermTab({
       value: "KPR_DP0",
       title: getTermLabel("KPR_DP0", state.dpPercent),
       subtitle: "Uang muka bisa 0% atau custom, sisa harga diajukan sebagai KPR bank",
+    },
+    {
+      value: "KPR_BERJENJANG",
+      title: "KPR Berjenjang",
+      subtitle: "Bunga atau angsuran bertingkat per periode, bukan flat sepanjang tenor",
     },
   ];
 
@@ -62,7 +76,7 @@ export default function TermTab({
         label={`Tenor KPR: ${state.tenorTahun} tahun`}
         htmlFor="tenor"
         error={errors.tenor}
-        hint={requiresKprInput ? undefined : "Tidak dipakai pada skema Tunai Bertahap"}
+        hint={tenorEnabled ? undefined : "Tidak dipakai pada skema Tunai Bertahap"}
       >
         <input
           id="tenor"
@@ -71,7 +85,7 @@ export default function TermTab({
           max={30}
           step={1}
           value={state.tenorTahun}
-          disabled={!requiresKprInput}
+          disabled={!tenorEnabled}
           onChange={(e) =>
             dispatch({ type: "SET_FIELD", field: "tenorTahun", value: Number(e.target.value) })
           }
@@ -87,7 +101,11 @@ export default function TermTab({
         label={`Suku Bunga KPR: ${formatPercent(state.sukuBunga)} p.a.`}
         htmlFor="rate"
         error={errors.sukuBunga}
-        hint="Default sesuai rate market — dapat diubah manual (0,5%–10% p.a.)"
+        hint={
+          isBerjenjangBunga
+            ? "Tidak dipakai — suku bunga diatur per tier di bawah"
+            : "Default sesuai rate market — dapat diubah manual (0,5%–10% p.a.)"
+        }
       >
         <TextInput
           id="rate"
@@ -95,7 +113,7 @@ export default function TermTab({
           min={0.5}
           max={10}
           step={0.01}
-          disabled={!requiresKprInput}
+          disabled={!rateFieldEnabled}
           value={Number((state.sukuBunga * 100).toFixed(2))}
           onChange={(e) =>
             dispatch({
@@ -108,7 +126,7 @@ export default function TermTab({
         />
       </Field>
 
-      {state.term === "KPR_DP0" && (
+      {showDpEditor && (
         <Field
           label={`Uang Muka (DP): ${(state.dpPercent * 100).toFixed(0)}%`}
           htmlFor="dpNominal"
@@ -158,6 +176,8 @@ export default function TermTab({
           </div>
         </Field>
       )}
+
+      {isBerjenjang && <TierEditor state={state} dispatch={dispatch} />}
 
       {state.term !== "HARD_CASH" && (
         <Field
