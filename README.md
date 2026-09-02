@@ -70,3 +70,5 @@ yang perlu di-set di Vercel: `NEXT_PUBLIC_SUPABASE_URL` &
 
 Simulasi bersifat estimasi. Persetujuan KPR dan suku bunga final sepenuhnya
 ditentukan oleh Bank pemberi KPR (sesuai Syarat & Ketentuan pricelist).
+
+<!-- trigger redeploy: framework preset fixed to Next.js on Vercel -->
