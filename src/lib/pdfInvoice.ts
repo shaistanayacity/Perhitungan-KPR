@@ -111,14 +111,18 @@ export async function generateInvoicePdf(
 
   // ---- Section 3: Breakdown Harga ----
   sectionTitle("3. Breakdown Harga");
-  const breakdownRows: [string, string][] = [["Harga Original", formatRupiah(result.harga)]];
+  const breakdownRows: [string, string][] = [["Harga Properti (KPR)", formatRupiah(result.harga)]];
   if (result.diskonTunaiKeras > 0)
     breakdownRows.push(["Diskon Tunai Keras (5%)", `- ${formatRupiah(result.diskonTunaiKeras)}`]);
   if (result.diskonPreLaunching > 0)
     breakdownRows.push(["Diskon Pre-Launching", `- ${formatRupiah(result.diskonPreLaunching)}`]);
-  breakdownRows.push(["Diskon PPN DTP", `- ${formatRupiah(result.ppnDtp)}`]);
   breakdownRows.push(["Harga Setelah Diskon", formatRupiah(result.hargaSetelahDiskon)]);
   kv(breakdownRows);
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...MUTED);
+  doc.text("*Harga Properti (KPR) sudah termasuk potongan PPN DTP dari Harga Asli sesuai pricelist.", margin, y);
+  y += 5;
 
   // ---- Section 4: Term of Payment ----
   sectionTitle("4. Term of Payment");

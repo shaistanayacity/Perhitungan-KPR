@@ -98,7 +98,7 @@ export default function ResultsPanel({
         </SectionCard>
 
         <SectionCard eyebrow="Section 3" title="Breakdown Harga">
-          <StatRow label="Harga Original" value={formatRupiah(result.harga)} />
+          <StatRow label="Harga Properti (KPR)" value={formatRupiah(result.harga)} />
           {result.diskonTunaiKeras > 0 && (
             <StatRow
               label="Diskon Tunai Keras (5%)"
@@ -114,15 +114,13 @@ export default function ResultsPanel({
             />
           )}
           <StatRow
-            label="Diskon PPN DTP"
-            value={`− ${formatRupiah(result.ppnDtp)}`}
-            negative
-          />
-          <StatRow
             label="Harga Setelah Diskon"
             value={formatRupiah(result.hargaSetelahDiskon)}
             emphasis
           />
+          <p className="mt-2 text-xs text-foreground-muted">
+            *Harga Properti (KPR) sudah termasuk potongan PPN DTP dari Harga Asli sesuai pricelist.
+          </p>
         </SectionCard>
 
         <SectionCard eyebrow="Section 4" title="Term of Payment">

@@ -1,6 +1,11 @@
 // Calculation engine — KPR Calculator Tool Shaistanaya City
-// Formula & aturan diambil dari BRIEF_KPR_CALCULATOR_TOOL_LENGKAP.docx §3.2 & §7
-// dan SIMULASI_PEMBAYARAN_SHAISTANAYA_CITY.xlsx (formula PPN DTP & anuitas PMT).
+// Formula & aturan diambil dari BRIEF_KPR_CALCULATOR_TOOL_LENGKAP.docx §3.2 & §7.
+//
+// Catatan penting: "Harga Properti (KPR)" di pricelist (unit.hargaKpr) SUDAH
+// merupakan harga setelah PPN DTP dipotong dari Harga Asli (lihat kolom
+// "DISKON PPN DTP" di PL.pdf) — jadi PPN DTP TIDAK dihitung ulang di sini.
+// Diskon yang dihitung di engine ini hanya diskon spesifik per term
+// (tunai keras 5% untuk Hard Cash, atau diskon pre-launching bila ada).
 
 import { PropertyUnit, UTJ_BY_CLUSTER, getBertahapTenorBulan } from "./pricelist";
 
@@ -40,7 +45,6 @@ export interface CalculationResult {
   harga: number;
   diskonTunaiKeras: number;
   diskonPreLaunching: number;
-  ppnDtp: number;
   hargaSetelahDiskon: number;
 
   // §Section 4: Term of Payment
@@ -62,17 +66,6 @@ export interface CalculationResult {
   cashFlow: CashFlowMilestone[];
 }
 
-/** Setara Excel ROUNDDOWN(value, -6): membulatkan ke bawah ke kelipatan 1.000.000, tidak pernah negatif. */
-function roundDownToMillion(value: number): number {
-  if (value <= 0) return 0;
-  return Math.floor(value / 1_000_000) * 1_000_000;
-}
-
-/** Formula PPN DTP (§3.2): ROUNDDOWN((basis × 11%) − 15.000.000, -6), minimum 0. */
-function hitungPpnDtp(basis: number): number {
-  return roundDownToMillion(basis * 0.11 - 15_000_000);
-}
-
 /** Formula anuitas standar: A = P × [r(1+r)^n] / [(1+r)^n − 1] (§7). */
 function hitungAngsuranAnuitas(pokok: number, sukuBungaTahunan: number, tenorTahun: number): number {
   const n = Math.round(tenorTahun * 12);
@@ -92,8 +85,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
 
   if (term === "HARD_CASH") {
     const diskonTunaiKeras = harga * 0.05;
-    const ppnDtp = hitungPpnDtp(harga - diskonTunaiKeras);
-    const hargaSetelahDiskon = harga - diskonTunaiKeras - ppnDtp;
+    const hargaSetelahDiskon = harga - diskonTunaiKeras;
     const uangMuka80 = harga * 0.8;
     const sisaPelunasan = hargaSetelahDiskon - utj - uangMuka80;
     const pokokKpr = Math.max(sisaPelunasan, 0);
@@ -111,7 +103,6 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
       harga,
       diskonTunaiKeras,
       diskonPreLaunching: 0,
-      ppnDtp,
       hargaSetelahDiskon,
       utj,
       uangMuka: uangMuka80,
@@ -129,8 +120,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
   }
 
   if (term === "TUNAI_BERTAHAP") {
-    const ppnDtp = hitungPpnDtp(harga - diskonPreLaunching);
-    const hargaSetelahDiskon = harga - diskonPreLaunching - ppnDtp;
+    const hargaSetelahDiskon = harga - diskonPreLaunching;
     const tenorBulan = getBertahapTenorBulan(unit.cluster, unit.tipe);
     const sisaPelunasan = hargaSetelahDiskon - utj;
     const cicilanBulanan = sisaPelunasan / tenorBulan;
@@ -149,7 +139,6 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
       harga,
       diskonTunaiKeras: 0,
       diskonPreLaunching,
-      ppnDtp,
       hargaSetelahDiskon,
       utj,
       uangMuka: 0,
@@ -168,8 +157,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
 
   // KPR_DP0 (KPR dengan DP custom, default 0%)
   const dpPercent = Math.min(Math.max(input.dpPercent ?? 0, 0), 0.9);
-  const ppnDtp = hitungPpnDtp(harga - diskonPreLaunching);
-  const hargaSetelahDiskon = harga - diskonPreLaunching - ppnDtp;
+  const hargaSetelahDiskon = harga - diskonPreLaunching;
   const uangMuka = harga * dpPercent;
   const pokokKpr = hargaSetelahDiskon - utj - uangMuka;
   const angsuran = hitungAngsuranAnuitas(pokokKpr, sukuBunga, tenorTahun);
@@ -190,7 +178,6 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     harga,
     diskonTunaiKeras: 0,
     diskonPreLaunching,
-    ppnDtp,
     hargaSetelahDiskon,
     utj,
     uangMuka,
