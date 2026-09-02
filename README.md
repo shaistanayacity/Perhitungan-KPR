@@ -72,3 +72,5 @@ Simulasi bersifat estimasi. Persetujuan KPR dan suku bunga final sepenuhnya
 ditentukan oleh Bank pemberi KPR (sesuai Syarat & Ketentuan pricelist).
 
 <!-- trigger redeploy: framework preset fixed to Next.js on Vercel -->
+
+<!-- trigger production redeploy: bind default domain after project rename to hitungkprshaistanayacity -->
