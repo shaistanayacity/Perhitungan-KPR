@@ -83,8 +83,8 @@ export default function PropertiTab({
       </Field>
 
       {selectedUnit && (
-        <div className="rounded-xl border border-border bg-surface-muted p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gold-strong">
+        <div className="rounded-2xl border border-border bg-surface-muted p-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground-muted/70">
             Detail Unit Terpilih
           </p>
           <StatRow label="Luas Bangunan (LB)" value={`${selectedUnit.lb} m²`} />

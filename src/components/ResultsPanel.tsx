@@ -4,7 +4,7 @@ import { FormState } from "@/lib/formReducer";
 import { PropertyUnit } from "@/lib/pricelist";
 import { CalculationResult, getTermLabel } from "@/lib/kpr-calculator";
 import { formatRupiah, formatPercent } from "@/lib/format";
-import { SectionCard, StatRow } from "@/components/ui";
+import { SectionCard, StatRow, Pill, Button } from "@/components/ui";
 
 export default function ResultsPanel({
   state,
@@ -25,14 +25,18 @@ export default function ResultsPanel({
 }) {
   if (!unit || !result) {
     return (
-      <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface-muted p-10 text-center">
+      <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-border bg-surface p-10 text-center">
+        <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted">
+          <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-foreground-muted" strokeWidth="1.5">
+            <rect x="4" y="3" width="16" height="18" rx="2" />
+            <path d="M8 8h8M8 12h8M8 16h5" strokeLinecap="round" />
+          </svg>
+        </span>
         <p className="font-brand text-2xl text-foreground">Preview Simulasi</p>
         <p className="mt-2 max-w-xs text-sm text-foreground-muted">
           Lengkapi data profil, pilih properti, dan term of payment, lalu klik{" "}
-          <span className="font-semibold text-foreground">
-            “Hitung Simulasi”
-          </span>{" "}
-          untuk melihat hasilnya di sini.
+          <span className="font-semibold text-foreground">“Hitung Simulasi”</span> untuk melihat
+          hasilnya di sini.
         </p>
       </div>
     );
@@ -44,26 +48,24 @@ export default function ResultsPanel({
         id="invoice-preview"
         className="flex flex-1 flex-col gap-4 overflow-y-auto pr-1"
       >
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/30 bg-gradient-to-br from-navy to-navy-strong p-5 text-white">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-6">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-gold-soft/90">
-              Ringkasan Simulasi
-            </p>
-            <p className="font-brand text-2xl">
+            <Pill tone="gold">{getTermLabel(state.term, state.dpPercent)}</Pill>
+            <p className="font-brand mt-2.5 text-2xl text-foreground">
               {unit.tipe} · {unit.cluster}
             </p>
-            <p className="text-sm text-white/70">{getTermLabel(state.term, state.dpPercent)}</p>
+            <p className="text-sm text-foreground-muted">Blok {unit.blok} · No. {unit.noUnit}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-white/60">Estimasi Angsuran / Cicilan Bulanan</p>
-            <p className="font-brand text-3xl text-gold-strong">
+            <p className="text-xs text-foreground-muted">Estimasi Angsuran / Cicilan Bulanan</p>
+            <p className="font-brand text-3xl text-foreground">
               {result.angsuranBulananKpr !== null
                 ? formatRupiah(result.angsuranBulananKpr)
                 : result.cicilanBulanan !== null
                   ? formatRupiah(result.cicilanBulanan)
                   : "—"}
             </p>
-            <p className="text-[11px] text-white/50">*Estimasi, bukan angka final dari bank</p>
+            <p className="text-[11px] text-foreground-muted/70">*Estimasi, bukan angka final dari bank</p>
           </div>
         </div>
 
@@ -177,7 +179,7 @@ export default function ResultsPanel({
           <ol className="flex flex-col gap-3">
             {result.cashFlow.map((m, i) => (
               <li key={i} className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold-soft text-[10px] font-bold text-gold-strong">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[10px] font-bold text-foreground-muted">
                   {i + 1}
                 </span>
                 <span className="flex-1">
@@ -199,22 +201,13 @@ export default function ResultsPanel({
         </SectionCard>
       </div>
 
-      <div className="no-print flex flex-wrap gap-2 rounded-2xl border border-border bg-surface p-3 shadow-sm">
-        <button
-          type="button"
-          onClick={onDownloadPdf}
-          disabled={isGeneratingPdf}
-          className="flex-1 rounded-lg bg-gold-strong px-4 py-2.5 text-sm font-semibold text-navy-strong transition hover:brightness-105 disabled:opacity-50"
-        >
+      <div className="no-print flex flex-wrap gap-2 rounded-2xl border border-border bg-surface p-3">
+        <Button variant="accent" onClick={onDownloadPdf} disabled={isGeneratingPdf} className="flex-1">
           {isGeneratingPdf ? "Membuat PDF…" : "Download Invoice PDF"}
-        </button>
-        <button
-          type="button"
-          onClick={onShare}
-          className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground-muted transition hover:text-foreground"
-        >
+        </Button>
+        <Button variant="secondary" onClick={onShare}>
           {shareStatus ?? "Share"}
-        </button>
+        </Button>
       </div>
     </div>
   );

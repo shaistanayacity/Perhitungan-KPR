@@ -1,34 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f5f0;
+  --background: #fafaf9;
   --surface: #ffffff;
-  --surface-muted: #f1eee6;
-  --foreground: #16233d;
-  --foreground-muted: #5b6577;
-  --border: #e4ddce;
+  --surface-muted: #f6f6f4;
+  --foreground: #1c1c1e;
+  --foreground-muted: #8a8a8e;
+  --border: #eaeae7;
+  --border-strong: #dcdcd8;
   --gold: #b7913f;
-  --gold-strong: #8f6e2a;
-  --gold-soft: #f1e6c8;
-  --navy: #0f1e3d;
-  --navy-strong: #0a1530;
-  --danger: #b3261e;
+  --gold-strong: #97742a;
+  --gold-soft: #faf3e2;
+  --navy: #1c1c1e;
+  --navy-strong: #000000;
+  --danger: #c4453a;
   --success: #1e6b45;
-  --shadow-color: 220 30% 10%;
 }
 
 [data-theme="dark"] {
-  --background: #0a1123;
-  --surface: #101a33;
-  --surface-muted: #16213e;
-  --foreground: #f2f0e8;
-  --foreground-muted: #a7b0c2;
-  --border: #253055;
+  --background: #0c0c0d;
+  --surface: #161617;
+  --surface-muted: #1d1d1f;
+  --foreground: #f4f3ef;
+  --foreground-muted: #97979c;
+  --border: #2a2a2c;
+  --border-strong: #38383b;
   --gold: #d9b45f;
   --gold-strong: #f0cd7e;
-  --gold-soft: #2a2312;
-  --navy: #16294d;
-  --navy-strong: #0a1530;
+  --gold-soft: #262013;
+  --navy: #f4f3ef;
+  --navy-strong: #ffffff;
   --danger: #f2867e;
   --success: #6fd6a3;
 }
@@ -40,6 +41,7 @@
   --color-foreground: var(--foreground);
   --color-foreground-muted: var(--foreground-muted);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-gold: var(--gold);
   --color-gold-strong: var(--gold-strong);
   --color-gold-soft: var(--gold-soft);
@@ -59,6 +61,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 .font-brand {
@@ -71,7 +74,8 @@ body {
 }
 
 input[type="range"] {
-  accent-color: var(--gold-strong);
+  accent-color: var(--navy);
+  height: 4px;
 }
 
 @media print {
