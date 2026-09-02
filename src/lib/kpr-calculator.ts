@@ -1,0 +1,199 @@
+// Calculation engine — KPR Calculator Tool Shaistanaya City
+// Formula & aturan diambil dari BRIEF_KPR_CALCULATOR_TOOL_LENGKAP.docx §3.2 & §7
+// dan SIMULASI_PEMBAYARAN_SHAISTANAYA_CITY.xlsx (formula PPN DTP & anuitas PMT).
+
+import { PropertyUnit, UTJ_BY_CLUSTER, getBertahapTenorBulan } from "./pricelist";
+
+export type TermOfPayment = "HARD_CASH" | "TUNAI_BERTAHAP" | "KPR_DP0";
+
+export const TERM_LABELS: Record<TermOfPayment, string> = {
+  HARD_CASH: "Hard Cash 1 Bulan",
+  TUNAI_BERTAHAP: "Tunai Bertahap (Tanpa UM)",
+  KPR_DP0: "KPR DP 0%",
+};
+
+export interface CalculatorInput {
+  unit: PropertyUnit;
+  term: TermOfPayment;
+  tenorTahun: number; // 1-30, dipakai untuk skema yang melibatkan KPR bank
+  sukuBunga: number; // desimal p.a., mis. 0.0381 = 3.81%
+  diskonPreLaunching?: number; // opsional, default 0 (§3.2.B)
+}
+
+export interface CashFlowMilestone {
+  hari: string; // label waktu, mis. "Hari ke-1"
+  keterangan: string;
+  nominal: number;
+}
+
+export interface CalculationResult {
+  // §Section 3: Breakdown Harga
+  harga: number;
+  diskonTunaiKeras: number;
+  diskonPreLaunching: number;
+  ppnDtp: number;
+  hargaSetelahDiskon: number;
+
+  // §Section 4: Term of Payment
+  utj: number;
+  uangMuka: number;
+  tenorBertahapBulan: number | null;
+  cicilanBulanan: number | null; // untuk Tunai Bertahap
+  sisaPelunasan: number;
+
+  // §Section 5: KPR Breakdown (annuity) — null jika term tidak melibatkan bank KPR
+  pokokKpr: number | null;
+  tenorKprTahun: number | null;
+  sukuBungaKpr: number | null;
+  angsuranBulananKpr: number | null;
+  totalBungaKpr: number | null;
+  totalCicilanKpr: number | null;
+
+  // §Section 6: Cash flow timeline
+  cashFlow: CashFlowMilestone[];
+}
+
+/** Setara Excel ROUNDDOWN(value, -6): membulatkan ke bawah ke kelipatan 1.000.000, tidak pernah negatif. */
+function roundDownToMillion(value: number): number {
+  if (value <= 0) return 0;
+  return Math.floor(value / 1_000_000) * 1_000_000;
+}
+
+/** Formula PPN DTP (§3.2): ROUNDDOWN((basis × 11%) − 15.000.000, -6), minimum 0. */
+function hitungPpnDtp(basis: number): number {
+  return roundDownToMillion(basis * 0.11 - 15_000_000);
+}
+
+/** Formula anuitas standar: A = P × [r(1+r)^n] / [(1+r)^n − 1] (§7). */
+function hitungAngsuranAnuitas(pokok: number, sukuBungaTahunan: number, tenorTahun: number): number {
+  const n = Math.round(tenorTahun * 12);
+  const r = sukuBungaTahunan / 12;
+  if (n <= 0) return 0;
+  if (r === 0) return pokok / n;
+  const factor = Math.pow(1 + r, n);
+  return (pokok * r * factor) / (factor - 1);
+}
+
+export function calculateSimulation(input: CalculatorInput): CalculationResult {
+  const { unit, term, tenorTahun, sukuBunga } = input;
+  const diskonPreLaunching = input.diskonPreLaunching ?? 0;
+  const harga = unit.hargaKpr;
+  const utj = UTJ_BY_CLUSTER[unit.cluster];
+  const cashFlow: CashFlowMilestone[] = [];
+
+  if (term === "HARD_CASH") {
+    const diskonTunaiKeras = harga * 0.05;
+    const ppnDtp = hitungPpnDtp(harga - diskonTunaiKeras);
+    const hargaSetelahDiskon = harga - diskonTunaiKeras - ppnDtp;
+    const uangMuka80 = harga * 0.8;
+    const sisaPelunasan = hargaSetelahDiskon - utj - uangMuka80;
+    const pokokKpr = Math.max(sisaPelunasan, 0);
+    const angsuran = hitungAngsuranAnuitas(pokokKpr, sukuBunga, tenorTahun);
+    const n = Math.round(tenorTahun * 12);
+    const totalCicilan = angsuran * n;
+
+    cashFlow.push(
+      { hari: "Hari ke-1", keterangan: "Uang Tanda Jadi (UTJ)", nominal: utj },
+      { hari: "Hari ke-30 (maks.)", keterangan: "Uang Muka 80%", nominal: uangMuka80 },
+      { hari: "Saat AJB Notaris", keterangan: "Sisa Pelunasan (tunai / dapat diajukan KPR)", nominal: sisaPelunasan }
+    );
+
+    return {
+      harga,
+      diskonTunaiKeras,
+      diskonPreLaunching: 0,
+      ppnDtp,
+      hargaSetelahDiskon,
+      utj,
+      uangMuka: uangMuka80,
+      tenorBertahapBulan: null,
+      cicilanBulanan: null,
+      sisaPelunasan,
+      pokokKpr,
+      tenorKprTahun: tenorTahun,
+      sukuBungaKpr: sukuBunga,
+      angsuranBulananKpr: angsuran,
+      totalBungaKpr: totalCicilan - pokokKpr,
+      totalCicilanKpr: totalCicilan,
+      cashFlow,
+    };
+  }
+
+  if (term === "TUNAI_BERTAHAP") {
+    const ppnDtp = hitungPpnDtp(harga - diskonPreLaunching);
+    const hargaSetelahDiskon = harga - diskonPreLaunching - ppnDtp;
+    const tenorBulan = getBertahapTenorBulan(unit.cluster, unit.tipe);
+    const sisaPelunasan = hargaSetelahDiskon - utj;
+    const cicilanBulanan = sisaPelunasan / tenorBulan;
+
+    cashFlow.push({ hari: "Hari ke-1", keterangan: "Uang Tanda Jadi (UTJ)", nominal: utj });
+    for (let i = 1; i <= tenorBulan; i++) {
+      const isLast = i === tenorBulan;
+      cashFlow.push({
+        hari: isLast ? "Saat AJB Notaris" : `Hari ke-${1 + i * 7} (approx., bulan ke-${i})`,
+        keterangan: `Angsuran ke-${i}${isLast ? " (pelunasan)" : ""}`,
+        nominal: cicilanBulanan,
+      });
+    }
+
+    return {
+      harga,
+      diskonTunaiKeras: 0,
+      diskonPreLaunching,
+      ppnDtp,
+      hargaSetelahDiskon,
+      utj,
+      uangMuka: 0,
+      tenorBertahapBulan: tenorBulan,
+      cicilanBulanan,
+      sisaPelunasan,
+      pokokKpr: null,
+      tenorKprTahun: null,
+      sukuBungaKpr: null,
+      angsuranBulananKpr: null,
+      totalBungaKpr: null,
+      totalCicilanKpr: null,
+      cashFlow,
+    };
+  }
+
+  // KPR_DP0
+  const ppnDtp = hitungPpnDtp(harga - diskonPreLaunching);
+  const hargaSetelahDiskon = harga - diskonPreLaunching - ppnDtp;
+  const pokokKpr = hargaSetelahDiskon - utj;
+  const angsuran = hitungAngsuranAnuitas(pokokKpr, sukuBunga, tenorTahun);
+  const n = Math.round(tenorTahun * 12);
+  const totalCicilan = angsuran * n;
+
+  cashFlow.push(
+    { hari: "Hari ke-1", keterangan: "Uang Tanda Jadi (UTJ)", nominal: utj },
+    { hari: "Hari ke-60 (maks.)", keterangan: "Permohonan KPR disetujui (Pokok KPR)", nominal: pokokKpr },
+    { hari: "Bulan ke-1 dst.", keterangan: "Angsuran KPR Bulanan", nominal: angsuran },
+    { hari: "Saat AJB Notaris", keterangan: "Akad Kredit & Serah Terima", nominal: 0 }
+  );
+
+  return {
+    harga,
+    diskonTunaiKeras: 0,
+    diskonPreLaunching,
+    ppnDtp,
+    hargaSetelahDiskon,
+    utj,
+    uangMuka: 0,
+    tenorBertahapBulan: null,
+    cicilanBulanan: null,
+    sisaPelunasan: pokokKpr,
+    pokokKpr,
+    tenorKprTahun: tenorTahun,
+    sukuBungaKpr: sukuBunga,
+    angsuranBulananKpr: angsuran,
+    totalBungaKpr: totalCicilan - pokokKpr,
+    totalCicilanKpr: totalCicilan,
+    cashFlow,
+  };
+}
+
+export function availableTermsForUnit(clusterUnit: PropertyUnit): TermOfPayment[] {
+  void clusterUnit;
+  return ["HARD_CASH", "TUNAI_BERTAHAP", "KPR_DP0"];
+}
