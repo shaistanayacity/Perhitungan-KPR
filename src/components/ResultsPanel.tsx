@@ -158,14 +158,6 @@ export default function ResultsPanel({
               value={formatRupiah(result.angsuranBulananKpr ?? 0)}
               emphasis
             />
-            <StatRow
-              label="Total Bunga (Estimasi)"
-              value={formatRupiah(result.totalBungaKpr ?? 0)}
-            />
-            <StatRow
-              label="Total Cicilan (Estimasi)"
-              value={formatRupiah(result.totalCicilanKpr ?? 0)}
-            />
             <p className="mt-2 text-xs text-foreground-muted">
               *Nominal estimasi berdasarkan rumus anuitas standar — suku bunga &amp; persetujuan
               akhir ditentukan oleh Bank pemberi KPR.
