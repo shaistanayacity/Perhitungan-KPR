@@ -6,7 +6,7 @@ import { ValidationErrors } from "@/types/buyer";
 import { getBertahapTenorBulan, getUnitById } from "@/lib/pricelist";
 import { TermOfPayment, getTermLabel } from "@/lib/kpr-calculator";
 import { Field, RadioCard, TextInput } from "@/components/ui";
-import { formatPercent } from "@/lib/format";
+import { formatPercent, formatRupiah } from "@/lib/format";
 
 export default function TermTab({
   state,
@@ -111,9 +111,34 @@ export default function TermTab({
       {state.term === "KPR_DP0" && (
         <Field
           label={`Uang Muka (DP): ${(state.dpPercent * 100).toFixed(0)}%`}
-          htmlFor="dpPercent"
-          hint="Default 0% (KPR DP 0%) — geser untuk simulasi dengan uang muka custom"
+          htmlFor="dpNominal"
+          hint={
+            unit
+              ? "Isi nominal Rupiah langsung, atau geser slider persentase — keduanya saling menyesuaikan"
+              : "Pilih properti dahulu untuk mengisi nominal DP"
+          }
         >
+          <TextInput
+            id="dpNominal"
+            type="number"
+            min={0}
+            max={unit ? unit.hargaKpr * 0.9 : undefined}
+            step={1_000_000}
+            disabled={!unit}
+            value={unit ? Math.round(unit.hargaKpr * state.dpPercent) : 0}
+            onChange={(e) => {
+              if (!unit) return;
+              const nominal = Math.max(0, Number(e.target.value));
+              const percent = unit.hargaKpr > 0 ? nominal / unit.hargaKpr : 0;
+              dispatch({ type: "SET_FIELD", field: "dpPercent", value: Math.min(percent, 0.9) });
+            }}
+            className="mb-2 disabled:opacity-40"
+          />
+          {unit && (
+            <p className="mb-2 text-xs text-foreground-muted">
+              ≈ {formatRupiah(unit.hargaKpr * state.dpPercent)} dari harga properti {formatRupiah(unit.hargaKpr)}
+            </p>
+          )}
           <input
             id="dpPercent"
             type="range"
@@ -121,10 +146,11 @@ export default function TermTab({
             max={90}
             step={5}
             value={state.dpPercent * 100}
+            disabled={!unit}
             onChange={(e) =>
               dispatch({ type: "SET_FIELD", field: "dpPercent", value: Number(e.target.value) / 100 })
             }
-            className="w-full"
+            className="w-full disabled:opacity-40"
           />
           <div className="flex justify-between text-xs text-foreground-muted">
             <span>0%</span>
