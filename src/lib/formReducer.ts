@@ -9,7 +9,6 @@ export interface FormState {
   nama: string;
   pekerjaan: Pekerjaan;
   usia: number | null;
-  kprAktif: number;
   cluster: ClusterId | null;
   tipe: string | null;
   unitId: string | null;
@@ -25,7 +24,6 @@ export const initialFormState: FormState = {
   nama: "",
   pekerjaan: "Karyawan",
   usia: null,
-  kprAktif: 0,
   cluster: null,
   tipe: null,
   unitId: null,
