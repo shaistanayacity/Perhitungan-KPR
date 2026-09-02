@@ -147,8 +147,6 @@ export async function generateInvoicePdf(
       ["Tenor", `${result.tenorKprTahun} tahun`],
       ["Suku Bunga", `${formatPercent(result.sukuBungaKpr ?? 0)} p.a.`],
       ["Angsuran Bulanan (Estimasi)", formatRupiah(result.angsuranBulananKpr ?? 0)],
-      ["Total Bunga (Estimasi)", formatRupiah(result.totalBungaKpr ?? 0)],
-      ["Total Cicilan (Estimasi)", formatRupiah(result.totalCicilanKpr ?? 0)],
     ]);
   }
 
