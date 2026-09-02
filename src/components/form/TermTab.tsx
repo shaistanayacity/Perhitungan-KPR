@@ -25,7 +25,7 @@ export default function TermTab({
     {
       value: "HARD_CASH",
       title: "Hard Cash 1 Bulan",
-      subtitle: "Diskon tunai keras 5% + PPN DTP, DP 80%, sisa saat AJB",
+      subtitle: "Diskon tunai keras 5%, DP 80%, sisa saat AJB",
     },
     {
       value: "TUNAI_BERTAHAP",
