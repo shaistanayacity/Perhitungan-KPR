@@ -55,7 +55,7 @@ export default function ResultsPanel({
             <p className="text-sm text-white/70">{getTermLabel(state.term, state.dpPercent)}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-white/60">Angsuran / Cicilan Bulanan</p>
+            <p className="text-xs text-white/60">Estimasi Angsuran / Cicilan Bulanan</p>
             <p className="font-brand text-3xl text-gold-strong">
               {result.angsuranBulananKpr !== null
                 ? formatRupiah(result.angsuranBulananKpr)
@@ -63,6 +63,7 @@ export default function ResultsPanel({
                   ? formatRupiah(result.cicilanBulanan)
                   : "—"}
             </p>
+            <p className="text-[11px] text-white/50">*Estimasi, bukan angka final dari bank</p>
           </div>
         </div>
 
@@ -72,10 +73,6 @@ export default function ResultsPanel({
           <StatRow
             label="Usia"
             value={state.usia ? `${state.usia} tahun` : "—"}
-          />
-          <StatRow
-            label="KPR Aktif Saat Ini"
-            value={formatRupiah(state.kprAktif)}
           />
         </SectionCard>
 
@@ -157,18 +154,22 @@ export default function ResultsPanel({
               value={`${formatPercent(result.sukuBungaKpr ?? 0)} p.a.`}
             />
             <StatRow
-              label="Angsuran Bulanan"
+              label="Angsuran Bulanan (Estimasi)"
               value={formatRupiah(result.angsuranBulananKpr ?? 0)}
               emphasis
             />
             <StatRow
-              label="Total Bunga"
+              label="Total Bunga (Estimasi)"
               value={formatRupiah(result.totalBungaKpr ?? 0)}
             />
             <StatRow
-              label="Total Cicilan"
+              label="Total Cicilan (Estimasi)"
               value={formatRupiah(result.totalCicilanKpr ?? 0)}
             />
+            <p className="mt-2 text-xs text-foreground-muted">
+              *Nominal estimasi berdasarkan rumus anuitas standar — suku bunga &amp; persetujuan
+              akhir ditentukan oleh Bank pemberi KPR.
+            </p>
           </SectionCard>
         )}
 

@@ -31,12 +31,11 @@ export default function Home() {
       validateForm({
         nama: state.nama,
         usia: state.usia,
-        kprAktif: state.kprAktif,
         tenor: state.tenorTahun,
         sukuBunga: state.sukuBunga,
         unitId: state.unitId,
       }),
-    [state.nama, state.usia, state.kprAktif, state.tenorTahun, state.sukuBunga, state.unitId]
+    [state.nama, state.usia, state.tenorTahun, state.sukuBunga, state.unitId]
   );
 
   const canCalculate = !hasErrors(errors);
@@ -54,7 +53,7 @@ export default function Home() {
     });
     setResult(calc);
     void logSimulation(
-      { nama: state.nama, pekerjaan: state.pekerjaan, usia: state.usia ?? 0, kprAktif: state.kprAktif },
+      { nama: state.nama, pekerjaan: state.pekerjaan, usia: state.usia ?? 0 },
       unit,
       state.term,
       calc

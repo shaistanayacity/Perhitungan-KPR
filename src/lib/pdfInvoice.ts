@@ -97,7 +97,6 @@ export async function generateInvoicePdf(
     ["Nama", state.nama],
     ["Pekerjaan", state.pekerjaan],
     ["Usia", `${state.usia} tahun`],
-    ["KPR Aktif Saat Ini", formatRupiah(state.kprAktif)],
   ]);
 
   // ---- Section 2: Data Properti ----
@@ -138,14 +137,14 @@ export async function generateInvoicePdf(
 
   // ---- Section 5: KPR Breakdown ----
   if (result.pokokKpr !== null) {
-    sectionTitle("5. KPR Breakdown");
+    sectionTitle("5. KPR Breakdown (Estimasi)");
     kv([
       ["Pokok KPR", formatRupiah(result.pokokKpr)],
       ["Tenor", `${result.tenorKprTahun} tahun`],
       ["Suku Bunga", `${formatPercent(result.sukuBungaKpr ?? 0)} p.a.`],
-      ["Angsuran Bulanan", formatRupiah(result.angsuranBulananKpr ?? 0)],
-      ["Total Bunga", formatRupiah(result.totalBungaKpr ?? 0)],
-      ["Total Cicilan", formatRupiah(result.totalCicilanKpr ?? 0)],
+      ["Angsuran Bulanan (Estimasi)", formatRupiah(result.angsuranBulananKpr ?? 0)],
+      ["Total Bunga (Estimasi)", formatRupiah(result.totalBungaKpr ?? 0)],
+      ["Total Cicilan (Estimasi)", formatRupiah(result.totalCicilanKpr ?? 0)],
     ]);
   }
 

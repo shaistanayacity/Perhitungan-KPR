@@ -37,7 +37,6 @@ export async function logSimulation(
       nama: profile.nama,
       pekerjaan: profile.pekerjaan,
       usia: profile.usia,
-      kpr_aktif: profile.kprAktif,
       cluster: unit.cluster,
       tipe: unit.tipe,
       unit_id: unit.id,

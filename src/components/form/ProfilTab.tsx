@@ -60,24 +60,6 @@ export default function ProfilTab({
           }
         />
       </Field>
-
-      <Field
-        label="KPR Aktif Saat Ini (IDR)"
-        htmlFor="kprAktif"
-        error={errors.kprAktif}
-        hint="Isi 0 bila tidak memiliki cicilan KPR berjalan"
-      >
-        <TextInput
-          id="kprAktif"
-          type="number"
-          min={0}
-          step={1_000_000}
-          value={state.kprAktif}
-          onChange={(e) =>
-            dispatch({ type: "SET_FIELD", field: "kprAktif", value: Number(e.target.value) })
-          }
-        />
-      </Field>
     </div>
   );
 }

@@ -4,13 +4,11 @@ export interface BuyerProfile {
   nama: string;
   pekerjaan: Pekerjaan;
   usia: number;
-  kprAktif: number;
 }
 
 export interface ValidationErrors {
   nama?: string;
   usia?: string;
-  kprAktif?: string;
   tenor?: string;
   sukuBunga?: string;
   unit?: string;
@@ -19,7 +17,6 @@ export interface ValidationErrors {
 export function validateForm(input: {
   nama: string;
   usia: number | null;
-  kprAktif: number;
   tenor: number;
   sukuBunga: number;
   unitId: string | null;
@@ -34,10 +31,6 @@ export function validateForm(input: {
     errors.usia = "Usia wajib diisi";
   } else if (input.usia < 21 || input.usia > 65) {
     errors.usia = "Usia harus antara 21–65 tahun";
-  }
-
-  if (input.kprAktif < 0) {
-    errors.kprAktif = "Nominal KPR aktif tidak boleh negatif";
   }
 
   if (input.tenor < 1 || input.tenor > 30) {
