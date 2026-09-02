@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { FormState } from "./formReducer";
 import { PropertyUnit, TERMS_AND_CONDITIONS, BANK_ACCOUNT, COMPANY_INFO } from "./pricelist";
-import { CalculationResult, TERM_LABELS } from "./kpr-calculator";
+import { CalculationResult, getTermLabel } from "./kpr-calculator";
 import { formatRupiah, formatPercent, formatDateID, slugifyFileSegment } from "./format";
 
 const NAVY: [number, number, number] = [15, 30, 61];
@@ -124,7 +124,7 @@ export async function generateInvoicePdf(
   // ---- Section 4: Term of Payment ----
   sectionTitle("4. Term of Payment");
   const termRows: [string, string][] = [
-    ["Term Pembayaran", TERM_LABELS[state.term]],
+    ["Term Pembayaran", getTermLabel(state.term, state.dpPercent)],
     ["Uang Tanda Jadi (UTJ)", formatRupiah(result.utj)],
   ];
   if (result.uangMuka > 0) termRows.push(["Uang Muka", formatRupiah(result.uangMuka)]);

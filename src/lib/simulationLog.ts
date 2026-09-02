@@ -3,7 +3,7 @@ import { BuyerProfile } from "@/types/buyer";
 import { PropertyUnit } from "./pricelist";
 import { CalculationResult, TermOfPayment } from "./kpr-calculator";
 
-const DEFAULT_SUKU_BUNGA = 0.0381; // fallback jika Supabase tidak tersedia (§2.4)
+const DEFAULT_SUKU_BUNGA = 0.03; // fallback jika Supabase tidak tersedia — samakan dengan asumsi rate pricelist (PL.pdf: "*Asumsi rate 3%")
 
 /** Ambil suku bunga default terkini dari Supabase (dapat diupdate admin/sales
  * tanpa perlu redeploy aplikasi). Fallback ke default brief bila gagal. */

@@ -61,21 +61,59 @@ export default function FormPanel({
       </div>
 
       <div className="flex gap-2 border-t border-border p-4">
-        <button
-          type="button"
-          onClick={onReset}
-          className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground-muted transition hover:border-danger/40 hover:text-danger"
-        >
-          Reset
-        </button>
-        <button
-          type="button"
-          onClick={onCalculate}
-          disabled={!canCalculate}
-          className="flex-[2] rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-strong disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Hitung Simulasi
-        </button>
+        {state.activeTab === "profil" ? (
+          <>
+            <button
+              type="button"
+              onClick={onReset}
+              className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground-muted transition hover:border-danger/40 hover:text-danger"
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "SET_TAB", tab: "properti" })}
+              className="flex-[2] rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-strong"
+            >
+              Lanjut →
+            </button>
+          </>
+        ) : state.activeTab === "properti" ? (
+          <>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "SET_TAB", tab: "profil" })}
+              className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground-muted transition hover:text-foreground"
+            >
+              ← Kembali
+            </button>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "SET_TAB", tab: "term" })}
+              className="flex-[2] rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-strong"
+            >
+              Lanjut →
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "SET_TAB", tab: "properti" })}
+              className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground-muted transition hover:text-foreground"
+            >
+              ← Kembali
+            </button>
+            <button
+              type="button"
+              onClick={onCalculate}
+              disabled={!canCalculate}
+              className="flex-[2] rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-strong disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Hitung Simulasi
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

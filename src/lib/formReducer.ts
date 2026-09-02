@@ -17,6 +17,7 @@ export interface FormState {
   tenorTahun: number;
   sukuBunga: number;
   diskonPreLaunching: number;
+  dpPercent: number;
   activeTab: TabId;
 }
 
@@ -29,9 +30,10 @@ export const initialFormState: FormState = {
   tipe: null,
   unitId: null,
   term: "HARD_CASH",
-  tenorTahun: 10,
+  tenorTahun: 20,
   sukuBunga: DEFAULT_SUKU_BUNGA,
   diskonPreLaunching: 0,
+  dpPercent: 0,
   activeTab: "profil",
 };
 

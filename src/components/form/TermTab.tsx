@@ -4,7 +4,7 @@ import { Dispatch } from "react";
 import { FormState, FormAction } from "@/lib/formReducer";
 import { ValidationErrors } from "@/types/buyer";
 import { getBertahapTenorBulan, getUnitById } from "@/lib/pricelist";
-import { TermOfPayment } from "@/lib/kpr-calculator";
+import { TermOfPayment, getTermLabel } from "@/lib/kpr-calculator";
 import { Field, RadioCard, TextInput } from "@/components/ui";
 import { formatPercent } from "@/lib/format";
 
@@ -34,8 +34,8 @@ export default function TermTab({
     },
     {
       value: "KPR_DP0",
-      title: "KPR DP 0%",
-      subtitle: "Uang muka 0%, sisa harga diajukan sebagai KPR bank",
+      title: getTermLabel("KPR_DP0", state.dpPercent),
+      subtitle: "Uang muka bisa 0% atau custom, sisa harga diajukan sebagai KPR bank",
     },
   ];
 
@@ -107,6 +107,31 @@ export default function TermTab({
           className="disabled:opacity-40"
         />
       </Field>
+
+      {state.term === "KPR_DP0" && (
+        <Field
+          label={`Uang Muka (DP): ${(state.dpPercent * 100).toFixed(0)}%`}
+          htmlFor="dpPercent"
+          hint="Default 0% (KPR DP 0%) — geser untuk simulasi dengan uang muka custom"
+        >
+          <input
+            id="dpPercent"
+            type="range"
+            min={0}
+            max={90}
+            step={5}
+            value={state.dpPercent * 100}
+            onChange={(e) =>
+              dispatch({ type: "SET_FIELD", field: "dpPercent", value: Number(e.target.value) / 100 })
+            }
+            className="w-full"
+          />
+          <div className="flex justify-between text-xs text-foreground-muted">
+            <span>0%</span>
+            <span>90%</span>
+          </div>
+        </Field>
+      )}
 
       {state.term !== "HARD_CASH" && (
         <Field

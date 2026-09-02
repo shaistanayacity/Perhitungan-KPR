@@ -9,15 +9,24 @@ export type TermOfPayment = "HARD_CASH" | "TUNAI_BERTAHAP" | "KPR_DP0";
 export const TERM_LABELS: Record<TermOfPayment, string> = {
   HARD_CASH: "Hard Cash 1 Bulan",
   TUNAI_BERTAHAP: "Tunai Bertahap (Tanpa UM)",
-  KPR_DP0: "KPR DP 0%",
+  KPR_DP0: "KPR (DP Custom)",
 };
+
+/** Label tampilan untuk skema KPR dengan DP custom — menyertakan besaran DP terpilih. */
+export function getTermLabel(term: TermOfPayment, dpPercent = 0): string {
+  if (term === "KPR_DP0") {
+    return dpPercent > 0 ? `KPR DP ${(dpPercent * 100).toFixed(0)}%` : "KPR DP 0%";
+  }
+  return TERM_LABELS[term];
+}
 
 export interface CalculatorInput {
   unit: PropertyUnit;
   term: TermOfPayment;
   tenorTahun: number; // 1-30, dipakai untuk skema yang melibatkan KPR bank
-  sukuBunga: number; // desimal p.a., mis. 0.0381 = 3.81%
+  sukuBunga: number; // desimal p.a., mis. 0.03 = 3%
   diskonPreLaunching?: number; // opsional, default 0 (§3.2.B)
+  dpPercent?: number; // 0-0.9, khusus skema KPR_DP0 — uang muka custom (default 0 = DP 0%)
 }
 
 export interface CashFlowMilestone {
@@ -157,16 +166,21 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     };
   }
 
-  // KPR_DP0
+  // KPR_DP0 (KPR dengan DP custom, default 0%)
+  const dpPercent = Math.min(Math.max(input.dpPercent ?? 0, 0), 0.9);
   const ppnDtp = hitungPpnDtp(harga - diskonPreLaunching);
   const hargaSetelahDiskon = harga - diskonPreLaunching - ppnDtp;
-  const pokokKpr = hargaSetelahDiskon - utj;
+  const uangMuka = harga * dpPercent;
+  const pokokKpr = hargaSetelahDiskon - utj - uangMuka;
   const angsuran = hitungAngsuranAnuitas(pokokKpr, sukuBunga, tenorTahun);
   const n = Math.round(tenorTahun * 12);
   const totalCicilan = angsuran * n;
 
+  cashFlow.push({ hari: "Hari ke-1", keterangan: "Uang Tanda Jadi (UTJ)", nominal: utj });
+  if (uangMuka > 0) {
+    cashFlow.push({ hari: "Hari ke-30 (maks.)", keterangan: `Uang Muka (${(dpPercent * 100).toFixed(0)}%)`, nominal: uangMuka });
+  }
   cashFlow.push(
-    { hari: "Hari ke-1", keterangan: "Uang Tanda Jadi (UTJ)", nominal: utj },
     { hari: "Hari ke-60 (maks.)", keterangan: "Permohonan KPR disetujui (Pokok KPR)", nominal: pokokKpr },
     { hari: "Bulan ke-1 dst.", keterangan: "Angsuran KPR Bulanan", nominal: angsuran },
     { hari: "Saat AJB Notaris", keterangan: "Akad Kredit & Serah Terima", nominal: 0 }
@@ -179,7 +193,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     ppnDtp,
     hargaSetelahDiskon,
     utj,
-    uangMuka: 0,
+    uangMuka,
     tenorBertahapBulan: null,
     cicilanBulanan: null,
     sisaPelunasan: pokokKpr,

@@ -50,6 +50,7 @@ export default function Home() {
       tenorTahun: state.tenorTahun,
       sukuBunga: state.sukuBunga,
       diskonPreLaunching: state.diskonPreLaunching,
+      dpPercent: state.dpPercent,
     });
     setResult(calc);
     void logSimulation(

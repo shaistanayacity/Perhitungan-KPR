@@ -2,7 +2,7 @@
 
 import { FormState } from "@/lib/formReducer";
 import { PropertyUnit } from "@/lib/pricelist";
-import { CalculationResult, TERM_LABELS } from "@/lib/kpr-calculator";
+import { CalculationResult, getTermLabel } from "@/lib/kpr-calculator";
 import { formatRupiah, formatPercent } from "@/lib/format";
 import { SectionCard, StatRow } from "@/components/ui";
 
@@ -52,7 +52,7 @@ export default function ResultsPanel({
             <p className="font-brand text-2xl">
               {unit.tipe} · {unit.cluster}
             </p>
-            <p className="text-sm text-white/70">{TERM_LABELS[state.term]}</p>
+            <p className="text-sm text-white/70">{getTermLabel(state.term, state.dpPercent)}</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-white/60">Angsuran / Cicilan Bulanan</p>
@@ -127,7 +127,7 @@ export default function ResultsPanel({
         </SectionCard>
 
         <SectionCard eyebrow="Section 4" title="Term of Payment">
-          <StatRow label="Term Pembayaran" value={TERM_LABELS[state.term]} />
+          <StatRow label="Term Pembayaran" value={getTermLabel(state.term, state.dpPercent)} />
           <StatRow
             label="Uang Tanda Jadi (UTJ)"
             value={formatRupiah(result.utj)}
