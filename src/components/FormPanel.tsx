@@ -1,17 +1,65 @@
 "use client";
 
-import { Dispatch } from "react";
+import { Dispatch, Fragment } from "react";
 import { FormState, FormAction, TabId } from "@/lib/formReducer";
 import { ValidationErrors } from "@/types/buyer";
+import { Button } from "@/components/ui";
 import ProfilTab from "@/components/form/ProfilTab";
 import PropertiTab from "@/components/form/PropertiTab";
 import TermTab from "@/components/form/TermTab";
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: "profil", label: "1. Profil" },
-  { id: "properti", label: "2. Properti" },
-  { id: "term", label: "3. Term & KPR" },
+  { id: "profil", label: "Profil" },
+  { id: "properti", label: "Properti" },
+  { id: "term", label: "Term & KPR" },
 ];
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 12 12" className="h-3 w-3 fill-background">
+      <path d="M4.6 8.4 2.1 5.9l.9-.9 1.6 1.6 4-4 .9.9-4.9 4.9Z" />
+    </svg>
+  );
+}
+
+function Stepper({ activeTab, dispatch }: { activeTab: TabId; dispatch: Dispatch<FormAction> }) {
+  const activeIndex = TABS.findIndex((t) => t.id === activeTab);
+  return (
+    <div className="flex items-center justify-center gap-2 px-6 pb-5 pt-6">
+      {TABS.map((tab, i) => {
+        const isDone = i < activeIndex;
+        const isActive = i === activeIndex;
+        return (
+          <Fragment key={tab.id}>
+            <button
+              type="button"
+              onClick={() => (isDone ? dispatch({ type: "SET_TAB", tab: tab.id }) : undefined)}
+              className={`flex flex-col items-center gap-1.5 ${isDone ? "cursor-pointer" : "cursor-default"}`}
+            >
+              <span
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold transition ${
+                  isActive
+                    ? "bg-navy text-background"
+                    : isDone
+                      ? "bg-navy/80 text-background"
+                      : "border border-border-strong text-foreground-muted"
+                }`}
+              >
+                {isDone ? <CheckIcon /> : i + 1}
+              </span>
+              <span
+                className={`text-[11px] font-medium ${isActive ? "text-foreground" : "text-foreground-muted"}`}
+              >
+                {tab.label}
+              </span>
+            </button>
+            {i < TABS.length - 1 && <span className="mb-4 h-px w-6 shrink-0 bg-border" />}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function FormPanel({
   state,
@@ -29,28 +77,10 @@ export default function FormPanel({
   canCalculate: boolean;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-border bg-surface shadow-sm">
-      <div className="flex border-b border-border px-2 pt-2">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => dispatch({ type: "SET_TAB", tab: tab.id })}
-            className={`relative px-4 py-2.5 text-sm font-medium transition ${
-              state.activeTab === tab.id
-                ? "text-gold-strong"
-                : "text-foreground-muted hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-            {state.activeTab === tab.id && (
-              <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gold-strong" />
-            )}
-          </button>
-        ))}
-      </div>
+    <div className="flex h-full flex-col rounded-2xl border border-border bg-surface">
+      <Stepper activeTab={state.activeTab} dispatch={dispatch} />
 
-      <div className="flex-1 overflow-y-auto p-5">
+      <div className="flex-1 overflow-y-auto border-t border-border px-5 py-5 sm:px-6">
         {state.activeTab === "profil" && (
           <ProfilTab state={state} dispatch={dispatch} errors={errors} />
         )}
@@ -63,55 +93,46 @@ export default function FormPanel({
       <div className="flex gap-2 border-t border-border p-4">
         {state.activeTab === "profil" ? (
           <>
-            <button
-              type="button"
-              onClick={onReset}
-              className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground-muted transition hover:border-danger/40 hover:text-danger"
-            >
+            <Button variant="secondary" onClick={onReset} className="flex-1">
               Reset
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="primary"
               onClick={() => dispatch({ type: "SET_TAB", tab: "properti" })}
-              className="flex-[2] rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-strong"
+              className="flex-[2]"
             >
-              Lanjut →
-            </button>
+              Lanjut
+            </Button>
           </>
         ) : state.activeTab === "properti" ? (
           <>
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={() => dispatch({ type: "SET_TAB", tab: "profil" })}
-              className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground-muted transition hover:text-foreground"
+              className="flex-1"
             >
-              ← Kembali
-            </button>
-            <button
-              type="button"
+              Kembali
+            </Button>
+            <Button
+              variant="primary"
               onClick={() => dispatch({ type: "SET_TAB", tab: "term" })}
-              className="flex-[2] rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-strong"
+              className="flex-[2]"
             >
-              Lanjut →
-            </button>
+              Lanjut
+            </Button>
           </>
         ) : (
           <>
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={() => dispatch({ type: "SET_TAB", tab: "properti" })}
-              className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground-muted transition hover:text-foreground"
+              className="flex-1"
             >
-              ← Kembali
-            </button>
-            <button
-              type="button"
-              onClick={onCalculate}
-              disabled={!canCalculate}
-              className="flex-[2] rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-strong disabled:cursor-not-allowed disabled:opacity-40"
-            >
+              Kembali
+            </Button>
+            <Button variant="primary" onClick={onCalculate} disabled={!canCalculate} className="flex-[2]">
               Hitung Simulasi
-            </button>
+            </Button>
           </>
         )}
       </div>
