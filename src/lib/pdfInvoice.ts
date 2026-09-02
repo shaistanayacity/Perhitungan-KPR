@@ -73,7 +73,7 @@ export async function generateInvoicePdf(
     doc.setDrawColor(...GOLD);
     doc.setLineWidth(0.3);
     doc.line(margin, y + 1.5, pageWidth - margin, y + 1.5);
-    y += 6;
+    y += 5.5;
   }
 
   function kv(rows: [string, string][]) {
@@ -81,14 +81,14 @@ export async function generateInvoicePdf(
       startY: y,
       margin: { left: margin, right: margin },
       theme: "plain",
-      styles: { fontSize: 9.5, textColor: INK, cellPadding: 1.1 },
+      styles: { fontSize: 9, textColor: INK, cellPadding: 0.9 },
       columnStyles: {
         0: { textColor: MUTED, cellWidth: 70 },
         1: { fontStyle: "bold", halign: "right" },
       },
       body: rows,
     });
-    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4;
   }
 
   // ---- Section 1: Data Pembeli ----
@@ -122,7 +122,7 @@ export async function generateInvoicePdf(
   doc.setFontSize(7.5);
   doc.setTextColor(...MUTED);
   doc.text("*Harga Properti (KPR) sudah termasuk potongan PPN DTP dari Harga Asli sesuai pricelist.", margin, y);
-  y += 5;
+  y += 4;
 
   // ---- Section 4: Term of Payment ----
   sectionTitle("4. Term of Payment");
@@ -151,7 +151,7 @@ export async function generateInvoicePdf(
   }
 
   // ---- Section 6: Cash Flow ----
-  if (y > 240) {
+  if (y > 250) {
     doc.addPage();
     y = 16;
   }
@@ -161,15 +161,15 @@ export async function generateInvoicePdf(
     margin: { left: margin, right: margin },
     head: [["Waktu", "Keterangan", "Nominal"]],
     body: result.cashFlow.map((m) => [m.hari, m.keterangan, m.nominal > 0 ? formatRupiah(m.nominal) : "—"]),
-    styles: { fontSize: 9, textColor: INK, cellPadding: 2.2 },
+    styles: { fontSize: 8.5, textColor: INK, cellPadding: 1.8 },
     headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold" },
     columnStyles: { 2: { halign: "right" } },
     alternateRowStyles: { fillColor: [246, 244, 238] },
   });
-  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
 
   // ---- Terms & bank info ----
-  if (y > 265) {
+  if (y > 272) {
     doc.addPage();
     y = 16;
   }

@@ -125,15 +125,22 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     const sisaPelunasan = hargaSetelahDiskon - utj;
     const cicilanBulanan = sisaPelunasan / tenorBulan;
 
+    // Baris cash flow dirangkum jadi rentang (mis. "Angsuran ke-1 s/d ke-5" + pelunasan)
+    // mengikuti konvensi pricelist, bukan satu baris per bulan — supaya invoice tetap
+    // ringkas walau tenor bertahap sampai 9 bulan.
     cashFlow.push({ hari: "Hari ke-1", keterangan: "Uang Tanda Jadi (UTJ)", nominal: utj });
-    for (let i = 1; i <= tenorBulan; i++) {
-      const isLast = i === tenorBulan;
+    if (tenorBulan > 1) {
       cashFlow.push({
-        hari: isLast ? "Saat AJB Notaris" : `Hari ke-${1 + i * 7} (approx., bulan ke-${i})`,
-        keterangan: `Angsuran ke-${i}${isLast ? " (pelunasan)" : ""}`,
+        hari: `Hari ke-7 dst. (bulan ke-1 s/d ke-${tenorBulan - 1})`,
+        keterangan: `Angsuran ke-1 s/d ke-${tenorBulan - 1}`,
         nominal: cicilanBulanan,
       });
     }
+    cashFlow.push({
+      hari: "Saat AJB Notaris",
+      keterangan: `Angsuran ke-${tenorBulan} (pelunasan)`,
+      nominal: cicilanBulanan,
+    });
 
     return {
       harga,
