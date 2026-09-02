@@ -168,7 +168,7 @@ export async function generateInvoicePdf(
   y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
 
   // ---- Terms & bank info ----
-  if (y > 245) {
+  if (y > 265) {
     doc.addPage();
     y = 16;
   }
