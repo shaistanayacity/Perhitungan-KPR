@@ -101,10 +101,12 @@ export interface CalculationResult {
 
 /** Diskon PPN DTP (insentif pemerintah) — rumus resmi, hasil akhir saja yang
  * ditampilkan ke dashboard/invoice, bukan langkah rumusnya:
- * (((Harga Jual − diskon lain) + 4.000.000) / 1,16) × 11% − 15.000.000 */
+ * (((Harga Jual − diskon lain) + 4.000.000) / 1,16) × 11% − 15.000.000
+ * Hasil akhir dibulatkan ke bawah ke kelipatan Rp1.000.000 terdekat (mis.
+ * Rp106.995.690 → Rp106.000.000), sesuai konvensi pembulatan insentif ini. */
 function hitungDiskonPpnDtp(hargaSetelahDiskonLain: number): number {
   const nilai = ((hargaSetelahDiskonLain + 4_000_000) / 1.16) * 0.11 - 15_000_000;
-  return Math.max(0, nilai);
+  return Math.max(0, Math.floor(nilai / 1_000_000) * 1_000_000);
 }
 
 /** Susun tier eksplisit (dalam bulan) — TIDAK auto-mengisi sisa tenor ke tier
