@@ -14,10 +14,26 @@ const cormorant = Cormorant_Garamond({
   weight: ["500", "600", "700"],
 });
 
+const TITLE = "KPR Calculator — Shaistanaya City";
+const DESCRIPTION =
+  "Simulasi KPR interaktif untuk cluster Montana & Sierra, Shaistanaya City. Hitung cicilan, uang muka, dan term of payment secara real-time.";
+
 export const metadata: Metadata = {
-  title: "KPR Calculator — Shaistanaya City",
-  description:
-    "Simulasi KPR interaktif untuk cluster Montana & Sierra, Shaistanaya City. Hitung cicilan, uang muka, dan term of payment secara real-time.",
+  metadataBase: new URL("https://hitungkprshaistanayacity.vercel.app"),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    siteName: "Shaistanaya City",
+    locale: "id_ID",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
