@@ -11,7 +11,7 @@ import TermTab from "@/components/form/TermTab";
 const TABS: { id: TabId; label: string }[] = [
   { id: "profil", label: "Profil" },
   { id: "properti", label: "Properti" },
-  { id: "term", label: "Term & KPR" },
+  { id: "term", label: "Term of Payment" },
 ];
 
 function CheckIcon() {

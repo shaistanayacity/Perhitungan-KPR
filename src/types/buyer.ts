@@ -1,25 +1,25 @@
-export type Pekerjaan = "Karyawan" | "Pengusaha" | "Professional" | "Lainnya";
+import { TermOfPayment } from "@/lib/kpr-calculator";
 
 export interface BuyerProfile {
   nama: string;
-  pekerjaan: Pekerjaan;
+  pekerjaan: string;
   usia: number;
+  gaji: number | null;
 }
 
 export interface ValidationErrors {
   nama?: string;
   usia?: string;
-  tenor?: string;
-  sukuBunga?: string;
+  tenorKpr?: string;
   unit?: string;
 }
 
 export function validateForm(input: {
   nama: string;
   usia: number | null;
-  tenor: number;
-  sukuBunga: number;
   unitId: string | null;
+  term: TermOfPayment;
+  tenorTahun: number;
 }): ValidationErrors {
   const errors: ValidationErrors = {};
 
@@ -33,16 +33,12 @@ export function validateForm(input: {
     errors.usia = "Usia harus antara 21–65 tahun";
   }
 
-  if (input.tenor < 1 || input.tenor > 30) {
-    errors.tenor = "Tenor KPR harus antara 1–30 tahun";
-  }
-
-  if (input.sukuBunga < 0.005 || input.sukuBunga > 0.1) {
-    errors.sukuBunga = "Suku bunga harus antara 0,5%–10% p.a.";
-  }
-
   if (!input.unitId) {
     errors.unit = "Pilih tipe & unit properti terlebih dahulu";
+  }
+
+  if (input.term === "KPR" && (input.tenorTahun < 1 || input.tenorTahun > 30)) {
+    errors.tenorKpr = "Tenor KPR harus antara 1–30 tahun";
   }
 
   return errors;

@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { FormState } from "./formReducer";
 import { PropertyUnit, TERMS_AND_CONDITIONS, BANK_ACCOUNT, COMPANY_INFO } from "./pricelist";
-import { CalculationResult, getTermLabel } from "./kpr-calculator";
+import { CalculationResult, getTermLabel, KPR_MODE_LABELS } from "./kpr-calculator";
 import { formatRupiah, formatPercent, formatDateID, slugifyFileSegment } from "./format";
 
 const NAVY: [number, number, number] = [15, 30, 61];
@@ -137,17 +137,14 @@ export async function generateInvoicePdf(
   }
 
   // ---- Baris 1: Data Pembeli | Data Properti ----
-  const rowA1 = card(
-    "1. Data Pembeli",
-    leftX,
-    colWidth,
-    y,
-    [
-      ["Nama", state.nama],
-      ["Pekerjaan", state.pekerjaan],
-      ["Usia", `${state.usia} tahun`],
-    ]
-  );
+  const dataPembeliRows: [string, string][] = [
+    ["Nama", state.nama],
+    ["Pekerjaan", state.pekerjaan || "—"],
+    ["Usia", `${state.usia} tahun`],
+  ];
+  if (state.gaji !== null) dataPembeliRows.push(["Gaji / Penghasilan", `${formatRupiah(state.gaji)}/bln`]);
+
+  const rowA1 = card("1. Data Pembeli", leftX, colWidth, y, dataPembeliRows);
   const rowA2 = card(
     "2. Data Properti",
     rightX,
@@ -155,24 +152,25 @@ export async function generateInvoicePdf(
     y,
     [
       ["Cluster / Tipe", `${unit.cluster} — ${unit.tipe}`],
-      ["Blok / No Unit", `${unit.blok} / ${unit.noUnit}`],
+      ["Blok", unit.blok],
       ["LB / LT", `${unit.lb} / ${unit.lt} m²`],
-      ["Harga Asli", formatRupiah(unit.hargaAsli)],
-      ["Harga (KPR)", formatRupiah(unit.hargaKpr)],
+      ["Harga Jual", formatRupiah(unit.hargaAsli)],
     ]
   );
   y = Math.max(rowA1, rowA2);
 
   // ---- Baris 2: Breakdown Harga | Term of Payment ----
-  const breakdownRows: [string, string][] = [["Harga Properti (KPR)", formatRupiah(result.harga)]];
+  const breakdownRows: [string, string][] = [["Harga Jual", formatRupiah(result.hargaJual)]];
   if (result.diskonTunaiKeras > 0)
     breakdownRows.push(["Diskon Tunai Keras (5%)", `- ${formatRupiah(result.diskonTunaiKeras)}`]);
-  if (result.diskonPreLaunching > 0)
-    breakdownRows.push(["Diskon Pre-Launching", `- ${formatRupiah(result.diskonPreLaunching)}`]);
-  breakdownRows.push(["Harga Setelah Diskon", formatRupiah(result.hargaSetelahDiskon)]);
+  if (result.diskonCustom > 0)
+    breakdownRows.push(["Diskon Khusus", `- ${formatRupiah(result.diskonCustom)}`]);
+  if (result.diskonPpnDtp > 0)
+    breakdownRows.push(["Diskon PPN DTP", `- ${formatRupiah(result.diskonPpnDtp)}`]);
+  breakdownRows.push(["Harga Transaksi", formatRupiah(result.hargaSetelahDiskon)]);
 
   const termRows: [string, string][] = [
-    ["Term Pembayaran", getTermLabel(state.term, state.dpPercent)],
+    ["Term Pembayaran", getTermLabel(state.term)],
     ["Uang Tanda Jadi (UTJ)", formatRupiah(result.utj)],
   ];
   if (result.uangMuka > 0) termRows.push(["Uang Muka", formatRupiah(result.uangMuka)]);
@@ -180,14 +178,7 @@ export async function generateInvoicePdf(
     termRows.push([`Cicilan (${result.tenorBertahapBulan} bln)`, formatRupiah(result.cicilanBulanan)]);
   termRows.push(["Sisa Pelunasan", formatRupiah(result.sisaPelunasan)]);
 
-  const rowB1 = card(
-    "3. Breakdown Harga",
-    leftX,
-    colWidth,
-    y,
-    breakdownRows,
-    "*Harga Properti (KPR) sudah termasuk potongan PPN DTP dari Harga Asli sesuai pricelist."
-  );
+  const rowB1 = card("3. Breakdown Harga", leftX, colWidth, y, breakdownRows);
   const rowB2 = card("4. Term of Payment", rightX, colWidth, y, termRows);
   y = Math.max(rowB1, rowB2);
 
@@ -197,32 +188,27 @@ export async function generateInvoicePdf(
       doc.addPage();
       y = 12;
     }
-    const head = ["Tier", "Durasi", result.tierMode === "BUNGA" ? "Bunga" : "Kenaikan", "Angsuran/bln"];
+    const head = ["Tahun", "Suku Bunga", "Angsuran/bln"];
     const body = result.tierBreakdown.map((t) => [
-      String(t.tierKe),
-      `${t.durasiTahun.toFixed(1)} thn`,
-      result.tierMode === "BUNGA"
-        ? formatPercent(t.nilai)
-        : t.tierKe === 1
-          ? "Basis"
-          : `+${formatPercent(t.nilai)}`,
+      `${t.tahunMulai}${t.tahunSelesai > t.tahunMulai ? `–${t.tahunSelesai}` : ""}`,
+      formatPercent(t.sukuBunga),
       formatRupiah(t.angsuranBulanan),
     ]);
+    if (result.floatingTail) {
+      const ft = result.floatingTail;
+      body.push([
+        `${ft.tahunMulai}${ft.tahunSelesai > ft.tahunMulai ? `–${ft.tahunSelesai}` : ""}`,
+        "Floating — mengikuti suku bunga bank",
+        "—",
+      ]);
+    }
     y = wideTableCard(
-      `5. KPR Breakdown Berjenjang · Pokok ${formatRupiah(result.pokokKpr)} · Tenor ${result.tenorKprTahun} thn`,
+      `5. KPR Breakdown (${result.kprMode ? KPR_MODE_LABELS[result.kprMode] : "KPR"}) · Pokok ${formatRupiah(result.pokokKpr)} · Tenor ${result.tenorKprTahun} thn`,
       y,
       head,
       body,
-      [3]
+      [2]
     );
-  } else if (result.pokokKpr !== null) {
-    const rowC = card("5. KPR Breakdown (Estimasi)", leftX, colWidth, y, [
-      ["Pokok KPR", formatRupiah(result.pokokKpr)],
-      ["Tenor", `${result.tenorKprTahun} tahun`],
-      ["Suku Bunga", `${formatPercent(result.sukuBungaKpr ?? 0)} p.a.`],
-      ["Angsuran Bulanan", formatRupiah(result.angsuranBulananKpr ?? 0)],
-    ]);
-    y = rowC;
   }
 
   // ---- Section 6: Cash Flow ----

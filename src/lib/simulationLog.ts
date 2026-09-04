@@ -37,6 +37,7 @@ export async function logSimulation(
       nama: profile.nama,
       pekerjaan: profile.pekerjaan,
       usia: profile.usia,
+      gaji: profile.gaji,
       cluster: unit.cluster,
       tipe: unit.tipe,
       unit_id: unit.id,
@@ -46,13 +47,13 @@ export async function logSimulation(
       harga_kpr: unit.hargaKpr,
       term_of_payment: term,
       tenor_tahun: result.tenorKprTahun,
-      suku_bunga: result.sukuBungaKpr,
+      suku_bunga: result.tierBreakdown?.[0]?.sukuBunga ?? null,
       harga_setelah_diskon: result.hargaSetelahDiskon,
       utj: result.utj,
       uang_muka: result.uangMuka,
       cicilan_bulanan: result.cicilanBulanan,
       pokok_kpr: result.pokokKpr,
-      angsuran_bulanan_kpr: result.angsuranBulananKpr,
+      angsuran_bulanan_kpr: result.angsuranAwalKpr,
       result,
     });
   } catch {

@@ -1,47 +1,56 @@
 // Calculation engine — KPR Calculator Tool Shaistanaya City
-// Formula & aturan diambil dari BRIEF_KPR_CALCULATOR_TOOL_LENGKAP.docx §3.2 & §7.
+// Formula & aturan diambil dari BRIEF_KPR_CALCULATOR_TOOL_LENGKAP.docx §3.2 & §7,
+// direvisi sesuai instruksi "Revisi TOOLS" (basis harga jadi Harga Jual + Diskon
+// PPN DTP dihitung live, bukan lagi angka jadi di pricelist).
 //
-// Catatan penting: "Harga Properti (KPR)" di pricelist (unit.hargaKpr) SUDAH
-// merupakan harga setelah PPN DTP dipotong dari Harga Asli (lihat kolom
-// "DISKON PPN DTP" di PL.pdf) — jadi PPN DTP TIDAK dihitung ulang di sini.
-// Diskon yang dihitung di engine ini hanya diskon spesifik per term
-// (tunai keras 5% untuk Hard Cash, atau diskon pre-launching bila ada).
+// Basis harga sekarang selalu "Harga Jual" (= unit.hargaAsli, harga list resmi
+// sebelum diskon apapun). Diskon PPN DTP dihitung live dari rumus insentif
+// pemerintah (bukan lagi kolom "Harga Properti (KPR)" siap pakai di pricelist).
 
-import { PropertyUnit, UTJ_BY_CLUSTER, getBertahapTenorBulan } from "./pricelist";
+import { PropertyUnit, UTJ_BY_CLUSTER } from "./pricelist";
 import { formatRupiah } from "./format";
 
-export type TermOfPayment = "HARD_CASH" | "TUNAI_BERTAHAP" | "KPR_DP0" | "KPR_BERJENJANG";
+export type TermOfPayment = "HARD_CASH" | "TUNAI_BERTAHAP" | "KPR";
 
 export const TERM_LABELS: Record<TermOfPayment, string> = {
   HARD_CASH: "Hard Cash 1 Bulan",
-  TUNAI_BERTAHAP: "Tunai Bertahap (Tanpa UM)",
-  KPR_DP0: "KPR (DP Custom)",
-  KPR_BERJENJANG: "KPR Berjenjang",
+  TUNAI_BERTAHAP: "Tunai Bertahap 6 Bulan (Tanpa UM)",
+  KPR: "KPR",
 };
 
-/** Label tampilan untuk skema KPR dengan DP custom — menyertakan besaran DP terpilih. */
-export function getTermLabel(term: TermOfPayment, dpPercent = 0): string {
-  if (term === "KPR_DP0") {
-    return dpPercent > 0 ? `KPR DP ${(dpPercent * 100).toFixed(0)}%` : "KPR DP 0%";
-  }
+export function getTermLabel(term: TermOfPayment): string {
   return TERM_LABELS[term];
 }
 
-export type TierMode = "BUNGA" | "ANGSURAN";
+export type KprMode = "FIX" | "BERJENJANG";
+
+export const KPR_MODE_LABELS: Record<KprMode, string> = {
+  FIX: "KPR Fix",
+  BERJENJANG: "KPR Berjenjang",
+};
 
 export interface KprTierInput {
-  /** Durasi tier dalam tahun. Diabaikan untuk tier terakhir (otomatis = sisa tenor). */
+  /** Durasi tier ini dalam tahun, diisi manual — bukan otomatis mengisi sisa tenor. */
   durasiTahun: number;
-  /** Mode BUNGA: suku bunga p.a. desimal (mis. 0.03 = 3%). Mode ANGSURAN: kenaikan angsuran
-   * dari tier sebelumnya, desimal (mis. 0.05 = naik 5%) — diabaikan untuk tier pertama. */
-  nilai: number;
+  /** Suku bunga p.a. desimal untuk tier ini (mis. 0.03 = 3%). */
+  sukuBunga: number;
 }
 
 export interface KprTierResult {
   tierKe: number;
-  durasiTahun: number;
-  nilai: number; // suku bunga (BUNGA) atau kenaikan % (ANGSURAN, 0 untuk tier pertama)
+  tahunMulai: number;
+  tahunSelesai: number;
+  sukuBunga: number;
   angsuranBulanan: number;
+  bulanMulai: number;
+  bulanSelesai: number;
+}
+
+/** Sisa tahun tenor yang tidak dialokasikan ke tier manapun — bunga & angsurannya
+ * "mengikuti suku bunga bank" (floating), jadi TIDAK dihitung angka pastinya. */
+export interface KprFloatingTail {
+  tahunMulai: number;
+  tahunSelesai: number;
   bulanMulai: number;
   bulanSelesai: number;
 }
@@ -49,12 +58,12 @@ export interface KprTierResult {
 export interface CalculatorInput {
   unit: PropertyUnit;
   term: TermOfPayment;
-  tenorTahun: number; // 1-30, dipakai untuk skema yang melibatkan KPR bank
-  sukuBunga: number; // desimal p.a., mis. 0.03 = 3% — juga dipakai sbg rate tetap mode Angsuran Berjenjang
-  diskonPreLaunching?: number; // opsional, default 0 (§3.2.B)
-  dpPercent?: number; // 0-0.9, khusus skema KPR_DP0 / KPR_BERJENJANG — uang muka custom
-  tierMode?: TierMode; // khusus KPR_BERJENJANG
-  tiers?: KprTierInput[]; // khusus KPR_BERJENJANG — minimal 1 elemen
+  diskonCustom?: number; // opsional, default 0 — "diskon khusus untuk case tertentu"
+  tenorBertahapBulan?: number; // khusus TUNAI_BERTAHAP — diisi manual
+  tenorTahun?: number; // 1-30, khusus KPR
+  dpPercent?: number; // 0-0.9, khusus KPR
+  kprMode?: KprMode; // khusus KPR
+  tiers?: KprTierInput[]; // khusus KPR — minimal 1 elemen, sisanya (bila ada) jadi floating
 }
 
 export interface CashFlowMilestone {
@@ -64,73 +73,67 @@ export interface CashFlowMilestone {
 }
 
 export interface CalculationResult {
-  // §Section 3: Breakdown Harga
-  harga: number;
-  diskonTunaiKeras: number;
-  diskonPreLaunching: number;
-  hargaSetelahDiskon: number;
+  // §Breakdown Harga
+  hargaJual: number;
+  diskonTunaiKeras: number; // khusus Hard Cash, 0 untuk term lain
+  diskonCustom: number;
+  diskonPpnDtp: number;
+  hargaSetelahDiskon: number; // "Harga Transaksi"
 
-  // §Section 4: Term of Payment
+  // §Term of Payment
   utj: number;
   uangMuka: number;
-  tenorBertahapBulan: number | null;
+  tenorBertahapBulan: number | null; // untuk Tunai Bertahap
   cicilanBulanan: number | null; // untuk Tunai Bertahap
   sisaPelunasan: number;
 
-  // §Section 5: KPR Breakdown (annuity) — null jika term tidak melibatkan bank KPR
+  // §KPR Breakdown — null jika term bukan KPR
   pokokKpr: number | null;
   tenorKprTahun: number | null;
-  sukuBungaKpr: number | null;
-  angsuranBulananKpr: number | null; // untuk KPR_BERJENJANG: angsuran tier pertama
-  totalBungaKpr: number | null;
-  totalCicilanKpr: number | null;
-
-  // Khusus KPR_BERJENJANG — null untuk term lain
-  tierMode: TierMode | null;
+  kprMode: KprMode | null;
   tierBreakdown: KprTierResult[] | null;
+  floatingTail: KprFloatingTail | null;
+  angsuranAwalKpr: number | null; // angsuran tier pertama, untuk ringkasan header
 
-  // §Section 6: Cash flow timeline
+  // §Cash flow timeline
   cashFlow: CashFlowMilestone[];
 }
 
-/** Formula anuitas standar: A = P × [r(1+r)^n] / [(1+r)^n − 1] (§7). */
-function hitungAngsuranAnuitas(pokok: number, sukuBungaTahunan: number, tenorTahun: number): number {
-  const n = Math.round(tenorTahun * 12);
-  const r = sukuBungaTahunan / 12;
-  if (n <= 0) return 0;
-  if (r === 0) return pokok / n;
-  const factor = Math.pow(1 + r, n);
-  return (pokok * r * factor) / (factor - 1);
+/** Diskon PPN DTP (insentif pemerintah) — rumus resmi, hasil akhir saja yang
+ * ditampilkan ke dashboard/invoice, bukan langkah rumusnya:
+ * (((Harga Jual − diskon lain) + 4.000.000) / 1,16) × 11% − 15.000.000 */
+function hitungDiskonPpnDtp(hargaSetelahDiskonLain: number): number {
+  const nilai = ((hargaSetelahDiskonLain + 4_000_000) / 1.16) * 0.11 - 15_000_000;
+  return Math.max(0, nilai);
 }
 
-/** Susun daftar tier efektif (dalam bulan): tier terakhir otomatis mengambil sisa bulan,
- * tier-tier sebelumnya di-clamp supaya total tidak pernah melebihi tenor total. */
-function susunTierBulan(tiers: KprTierInput[], totalBulan: number): { durasiBulan: number; nilai: number }[] {
-  const hasil: { durasiBulan: number; nilai: number }[] = [];
+/** Susun tier eksplisit (dalam bulan) — TIDAK auto-mengisi sisa tenor ke tier
+ * terakhir seperti versi lama. Kalau total durasi tier < tenor, sisanya jadi
+ * floating tail (dikembalikan terpisah oleh pemanggil). */
+function susunTierBulan(tiers: KprTierInput[], totalBulan: number): { durasiBulan: number; sukuBunga: number }[] {
+  const hasil: { durasiBulan: number; sukuBunga: number }[] = [];
   let terpakai = 0;
-  const manual = tiers.slice(0, -1);
-  const terakhir = tiers[tiers.length - 1];
-
-  for (const t of manual) {
-    const sisaUntukSisanya = totalBulan - terpakai - 1; // sisakan min. 1 bulan utk tier terakhir
-    if (sisaUntukSisanya <= 0) break;
-    const durasiBulan = Math.min(Math.round(t.durasiTahun * 12), sisaUntukSisanya);
+  for (const t of tiers) {
+    const sisa = totalBulan - terpakai;
+    if (sisa <= 0) break;
+    const durasiBulan = Math.min(Math.round(t.durasiTahun * 12), sisa);
     if (durasiBulan <= 0) continue;
-    hasil.push({ durasiBulan, nilai: t.nilai });
+    hasil.push({ durasiBulan, sukuBunga: t.sukuBunga });
     terpakai += durasiBulan;
-  }
-
-  const sisaBulan = totalBulan - terpakai;
-  if (sisaBulan > 0) {
-    hasil.push({ durasiBulan: sisaBulan, nilai: terakhir?.nilai ?? 0 });
   }
   return hasil;
 }
 
-/** Mode Bunga Berjenjang: tiap ganti tier, angsuran dihitung ulang dari sisa pokok,
- * direamortisasi ke SISA TENOR TOTAL (bukan cuma durasi tier) — praktik standar bank
- * step-rate mortgage (lih. contoh simulasi BCA: fixed tahun 1, lanjut bukan restart). */
-function hitungTierBunga(pokok: number, tenorTahun: number, tiers: KprTierInput[]): KprTierResult[] {
+/** Reamortisasi step-rate: tiap ganti tier, angsuran dihitung ulang dari sisa
+ * pokok, direamortisasi ke SISA TENOR TOTAL (bukan cuma durasi tier) — praktik
+ * standar bank (fixed period lanjut ke floating, bukan restart). Tahun-tahun
+ * yang tidak dialokasikan ke tier manapun dikembalikan sebagai floating tail
+ * TANPA angka angsuran (rate floating tidak diketahui di muka). */
+function hitungTierBunga(
+  pokok: number,
+  tenorTahun: number,
+  tiers: KprTierInput[]
+): { tierBreakdown: KprTierResult[]; floatingTail: KprFloatingTail | null } {
   const totalBulan = Math.round(tenorTahun * 12);
   const effTiers = susunTierBulan(tiers, totalBulan);
   const hasil: KprTierResult[] = [];
@@ -139,7 +142,7 @@ function hitungTierBunga(pokok: number, tenorTahun: number, tiers: KprTierInput[
 
   effTiers.forEach((tier, i) => {
     const sisaBulanTotal = totalBulan - bulanElapsed;
-    const r = tier.nilai / 12;
+    const r = tier.sukuBunga / 12;
     const angsuran =
       r === 0
         ? balance / sisaBulanTotal
@@ -147,8 +150,9 @@ function hitungTierBunga(pokok: number, tenorTahun: number, tiers: KprTierInput[
 
     hasil.push({
       tierKe: i + 1,
-      durasiTahun: tier.durasiBulan / 12,
-      nilai: tier.nilai,
+      tahunMulai: Math.floor(bulanElapsed / 12) + 1,
+      tahunSelesai: Math.ceil((bulanElapsed + tier.durasiBulan) / 12),
+      sukuBunga: tier.sukuBunga,
       angsuranBulanan: angsuran,
       bulanMulai: bulanElapsed + 1,
       bulanSelesai: bulanElapsed + tier.durasiBulan,
@@ -164,110 +168,70 @@ function hitungTierBunga(pokok: number, tenorTahun: number, tiers: KprTierInput[
     bulanElapsed += tier.durasiBulan;
   });
 
-  return hasil;
-}
+  const floatingTail: KprFloatingTail | null =
+    bulanElapsed < totalBulan
+      ? {
+          bulanMulai: bulanElapsed + 1,
+          bulanSelesai: totalBulan,
+          tahunMulai: Math.floor(bulanElapsed / 12) + 1,
+          tahunSelesai: tenorTahun,
+        }
+      : null;
 
-/** Mode Angsuran Berjenjang: satu suku bunga tetap sepanjang tenor, angsuran naik per
- * tier sesuai persentase kenaikan. Angsuran tier pertama dihitung supaya pokok pas
- * lunas 0 tepat di akhir tenor — bukan diisi manual (Graduated Payment Mortgage). */
-function hitungTierAngsuran(
-  pokok: number,
-  tenorTahun: number,
-  sukuBunga: number,
-  tiers: KprTierInput[]
-): KprTierResult[] {
-  const totalBulan = Math.round(tenorTahun * 12);
-  const r = sukuBunga / 12;
-  const effTiers = susunTierBulan(tiers, totalBulan);
-
-  // kalikan multiplier kumulatif tiap tier relatif terhadap angsuran tier pertama
-  let mult = 1;
-  const multPerTier = effTiers.map((tier, i) => {
-    if (i > 0) mult *= 1 + tier.nilai;
-    return mult;
-  });
-
-  // pokok*(1+r)^N = Σ angsuran_t * (1+r)^(N-t)  →  selesaikan angsuran tier pertama (P1)
-  let denomSum = 0;
-  let t = 0;
-  effTiers.forEach((tier, i) => {
-    for (let m = 0; m < tier.durasiBulan; m++) {
-      t++;
-      denomSum += multPerTier[i] * Math.pow(1 + r, totalBulan - t);
-    }
-  });
-  const p1 = denomSum > 0 ? (pokok * Math.pow(1 + r, totalBulan)) / denomSum : 0;
-
-  const hasil: KprTierResult[] = [];
-  let bulanElapsed = 0;
-  effTiers.forEach((tier, i) => {
-    hasil.push({
-      tierKe: i + 1,
-      durasiTahun: tier.durasiBulan / 12,
-      nilai: i === 0 ? 0 : tier.nilai,
-      angsuranBulanan: p1 * multPerTier[i],
-      bulanMulai: bulanElapsed + 1,
-      bulanSelesai: bulanElapsed + tier.durasiBulan,
-    });
-    bulanElapsed += tier.durasiBulan;
-  });
-  return hasil;
+  return { tierBreakdown: hasil, floatingTail };
 }
 
 export function calculateSimulation(input: CalculatorInput): CalculationResult {
-  const { unit, term, tenorTahun, sukuBunga } = input;
-  const diskonPreLaunching = input.diskonPreLaunching ?? 0;
-  const harga = unit.hargaKpr;
+  const { unit, term } = input;
+  const diskonCustom = Math.max(0, input.diskonCustom ?? 0);
+  const hargaJual = unit.hargaAsli;
   const utj = UTJ_BY_CLUSTER[unit.cluster];
   const cashFlow: CashFlowMilestone[] = [];
 
   if (term === "HARD_CASH") {
-    const diskonTunaiKeras = harga * 0.05;
-    const hargaSetelahDiskon = harga - diskonTunaiKeras;
-    const uangMuka80 = harga * 0.8;
+    const diskonTunaiKeras = hargaJual * 0.05;
+    const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonTunaiKeras - diskonCustom);
+    const hargaSetelahDiskon = hargaJual - diskonTunaiKeras - diskonCustom - diskonPpnDtp;
+    const uangMuka80 = hargaSetelahDiskon * 0.8;
     const sisaPelunasan = hargaSetelahDiskon - utj - uangMuka80;
-    const pokokKpr = Math.max(sisaPelunasan, 0);
-    const angsuran = hitungAngsuranAnuitas(pokokKpr, sukuBunga, tenorTahun);
-    const n = Math.round(tenorTahun * 12);
-    const totalCicilan = angsuran * n;
 
     cashFlow.push(
       { hari: "Hari ke-1", keterangan: "Uang Tanda Jadi (UTJ)", nominal: utj },
       { hari: "Hari ke-30 (maks.)", keterangan: "Uang Muka 80%", nominal: uangMuka80 },
-      { hari: "Saat AJB Notaris", keterangan: "Sisa Pelunasan (tunai / dapat diajukan KPR)", nominal: sisaPelunasan }
+      { hari: "Saat AJB Notaris", keterangan: "Sisa Pelunasan", nominal: sisaPelunasan }
     );
 
     return {
-      harga,
+      hargaJual,
       diskonTunaiKeras,
-      diskonPreLaunching: 0,
+      diskonCustom,
+      diskonPpnDtp,
       hargaSetelahDiskon,
       utj,
       uangMuka: uangMuka80,
       tenorBertahapBulan: null,
       cicilanBulanan: null,
       sisaPelunasan,
-      pokokKpr,
-      tenorKprTahun: tenorTahun,
-      sukuBungaKpr: sukuBunga,
-      angsuranBulananKpr: angsuran,
-      totalBungaKpr: totalCicilan - pokokKpr,
-      totalCicilanKpr: totalCicilan,
-      tierMode: null,
+      pokokKpr: null,
+      tenorKprTahun: null,
+      kprMode: null,
       tierBreakdown: null,
+      floatingTail: null,
+      angsuranAwalKpr: null,
       cashFlow,
     };
   }
 
   if (term === "TUNAI_BERTAHAP") {
-    const hargaSetelahDiskon = harga - diskonPreLaunching;
-    const tenorBulan = getBertahapTenorBulan(unit.cluster, unit.tipe);
+    const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonCustom);
+    const hargaSetelahDiskon = hargaJual - diskonCustom - diskonPpnDtp;
+    const tenorBulan = Math.max(1, Math.round(input.tenorBertahapBulan ?? 6));
     const sisaPelunasan = hargaSetelahDiskon - utj;
     const cicilanBulanan = sisaPelunasan / tenorBulan;
 
     // Baris cash flow dirangkum jadi rentang (mis. "Angsuran ke-1 s/d ke-5" + pelunasan)
     // mengikuti konvensi pricelist, bukan satu baris per bulan — supaya invoice tetap
-    // ringkas walau tenor bertahap sampai 9 bulan.
+    // ringkas walau tenornya panjang.
     cashFlow.push({ hari: "Hari ke-1", keterangan: "Uang Tanda Jadi (UTJ)", nominal: utj });
     if (tenorBulan > 1) {
       cashFlow.push({
@@ -283,9 +247,10 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     });
 
     return {
-      harga,
+      hargaJual,
       diskonTunaiKeras: 0,
-      diskonPreLaunching,
+      diskonCustom,
+      diskonPpnDtp,
       hargaSetelahDiskon,
       utj,
       uangMuka: 0,
@@ -294,101 +259,58 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
       sisaPelunasan,
       pokokKpr: null,
       tenorKprTahun: null,
-      sukuBungaKpr: null,
-      angsuranBulananKpr: null,
-      totalBungaKpr: null,
-      totalCicilanKpr: null,
-      tierMode: null,
+      kprMode: null,
       tierBreakdown: null,
+      floatingTail: null,
+      angsuranAwalKpr: null,
       cashFlow,
     };
   }
 
-  if (term === "KPR_BERJENJANG") {
-    const dpPercent = Math.min(Math.max(input.dpPercent ?? 0, 0), 0.9);
-    const hargaSetelahDiskon = harga - diskonPreLaunching;
-    const uangMuka = harga * dpPercent;
-    const pokokKpr = hargaSetelahDiskon - utj - uangMuka;
-    const tierMode: TierMode = input.tierMode ?? "BUNGA";
-    const tiers: KprTierInput[] =
-      input.tiers && input.tiers.length > 0
-        ? input.tiers
-        : [{ durasiTahun: Math.min(2, tenorTahun), nilai: sukuBunga }, { durasiTahun: 0, nilai: sukuBunga }];
-
-    const tierBreakdown =
-      tierMode === "BUNGA"
-        ? hitungTierBunga(pokokKpr, tenorTahun, tiers)
-        : hitungTierAngsuran(pokokKpr, tenorTahun, sukuBunga, tiers);
-
-    const angsuranAwal = tierBreakdown[0]?.angsuranBulanan ?? 0;
-    const totalCicilan = tierBreakdown.reduce(
-      (sum, t) => sum + t.angsuranBulanan * (t.bulanSelesai - t.bulanMulai + 1),
-      0
-    );
-
-    cashFlow.push({ hari: "Hari ke-1", keterangan: "Uang Tanda Jadi (UTJ)", nominal: utj });
-    if (uangMuka > 0) {
-      cashFlow.push({ hari: "Hari ke-30 (maks.)", keterangan: `Uang Muka (${(dpPercent * 100).toFixed(0)}%)`, nominal: uangMuka });
-    }
-    cashFlow.push({ hari: "Hari ke-60 (maks.)", keterangan: "Permohonan KPR disetujui (Pokok KPR)", nominal: pokokKpr });
-    tierBreakdown.forEach((t) => {
-      const label =
-        tierMode === "BUNGA"
-          ? `Angsuran Tier ${t.tierKe} (bunga ${(t.nilai * 100).toFixed(2)}%)`
-          : `Angsuran Tier ${t.tierKe}${t.tierKe > 1 ? ` (naik ${(t.nilai * 100).toFixed(0)}%)` : ""}`;
-      cashFlow.push({
-        hari: `Bulan ke-${t.bulanMulai} s/d ke-${t.bulanSelesai}`,
-        keterangan: `${label} — ${formatRupiah(t.angsuranBulanan)}/bulan`,
-        nominal: t.angsuranBulanan,
-      });
-    });
-    cashFlow.push({ hari: "Saat AJB Notaris", keterangan: "Akad Kredit & Serah Terima", nominal: 0 });
-
-    return {
-      harga,
-      diskonTunaiKeras: 0,
-      diskonPreLaunching,
-      hargaSetelahDiskon,
-      utj,
-      uangMuka,
-      tenorBertahapBulan: null,
-      cicilanBulanan: null,
-      sisaPelunasan: pokokKpr,
-      pokokKpr,
-      tenorKprTahun: tenorTahun,
-      sukuBungaKpr: tierMode === "ANGSURAN" ? sukuBunga : (tierBreakdown[0]?.nilai ?? sukuBunga),
-      angsuranBulananKpr: angsuranAwal,
-      totalBungaKpr: totalCicilan - pokokKpr,
-      totalCicilanKpr: totalCicilan,
-      tierMode,
-      tierBreakdown,
-      cashFlow,
-    };
-  }
-
-  // KPR_DP0 (KPR dengan DP custom, default 0%)
+  // KPR (Fix atau Berjenjang)
+  const tenorTahun = input.tenorTahun ?? 20;
   const dpPercent = Math.min(Math.max(input.dpPercent ?? 0, 0), 0.9);
-  const hargaSetelahDiskon = harga - diskonPreLaunching;
-  const uangMuka = harga * dpPercent;
+  const kprMode: KprMode = input.kprMode ?? "FIX";
+  const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonCustom);
+  const hargaSetelahDiskon = hargaJual - diskonCustom - diskonPpnDtp;
+  const uangMuka = hargaSetelahDiskon * dpPercent;
   const pokokKpr = hargaSetelahDiskon - utj - uangMuka;
-  const angsuran = hitungAngsuranAnuitas(pokokKpr, sukuBunga, tenorTahun);
-  const n = Math.round(tenorTahun * 12);
-  const totalCicilan = angsuran * n;
+
+  const defaultTiers: KprTierInput[] = [{ durasiTahun: Math.min(2, tenorTahun), sukuBunga: 0.03 }];
+  const tiers = input.tiers && input.tiers.length > 0 ? input.tiers : defaultTiers;
+  const { tierBreakdown, floatingTail } = hitungTierBunga(pokokKpr, tenorTahun, tiers);
+  const angsuranAwal = tierBreakdown[0]?.angsuranBulanan ?? 0;
 
   cashFlow.push({ hari: "Hari ke-1", keterangan: "Uang Tanda Jadi (UTJ)", nominal: utj });
   if (uangMuka > 0) {
-    cashFlow.push({ hari: "Hari ke-30 (maks.)", keterangan: `Uang Muka (${(dpPercent * 100).toFixed(0)}%)`, nominal: uangMuka });
+    cashFlow.push({
+      hari: "Hari ke-30 (maks.)",
+      keterangan: `Uang Muka (${(dpPercent * 100).toFixed(0)}%)`,
+      nominal: uangMuka,
+    });
   }
-  cashFlow.push(
-    { hari: "Hari ke-60 (maks.)", keterangan: "Permohonan KPR disetujui (Pokok KPR)", nominal: pokokKpr },
-    { hari: "Bulan ke-1 dst.", keterangan: "Angsuran KPR Bulanan", nominal: angsuran },
-    { hari: "Saat AJB Notaris", keterangan: "Akad Kredit & Serah Terima", nominal: 0 }
-  );
+  cashFlow.push({ hari: "Hari ke-60 (maks.)", keterangan: "Permohonan KPR disetujui (Pokok KPR)", nominal: pokokKpr });
+  tierBreakdown.forEach((t) => {
+    cashFlow.push({
+      hari: `Bulan ke-${t.bulanMulai} s/d ke-${t.bulanSelesai}`,
+      keterangan: `Angsuran Tahun ${t.tahunMulai}-${t.tahunSelesai} (bunga ${(t.sukuBunga * 100).toFixed(2)}%) — ${formatRupiah(t.angsuranBulanan)}/bulan`,
+      nominal: t.angsuranBulanan,
+    });
+  });
+  if (floatingTail) {
+    cashFlow.push({
+      hari: `Bulan ke-${floatingTail.bulanMulai} s/d ke-${floatingTail.bulanSelesai}`,
+      keterangan: `Angsuran Tahun ${floatingTail.tahunMulai}-${floatingTail.tahunSelesai} — Floating, mengikuti suku bunga bank`,
+      nominal: 0,
+    });
+  }
+  cashFlow.push({ hari: "Saat AJB Notaris", keterangan: "Akad Kredit & Serah Terima", nominal: 0 });
 
   return {
-    harga,
+    hargaJual,
     diskonTunaiKeras: 0,
-    diskonPreLaunching,
+    diskonCustom,
+    diskonPpnDtp,
     hargaSetelahDiskon,
     utj,
     uangMuka,
@@ -397,17 +319,46 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     sisaPelunasan: pokokKpr,
     pokokKpr,
     tenorKprTahun: tenorTahun,
-    sukuBungaKpr: sukuBunga,
-    angsuranBulananKpr: angsuran,
-    totalBungaKpr: totalCicilan - pokokKpr,
-    totalCicilanKpr: totalCicilan,
-    tierMode: null,
-    tierBreakdown: null,
+    kprMode,
+    tierBreakdown,
+    floatingTail,
+    angsuranAwalKpr: angsuranAwal,
     cashFlow,
   };
 }
 
 export function availableTermsForUnit(clusterUnit: PropertyUnit): TermOfPayment[] {
   void clusterUnit;
-  return ["HARD_CASH", "TUNAI_BERTAHAP", "KPR_DP0", "KPR_BERJENJANG"];
+  return ["HARD_CASH", "TUNAI_BERTAHAP", "KPR"];
+}
+
+/** Preview ringan (level tahun, bukan bulan) untuk ditampilkan di form saat
+ * user masih mengisi tier — dipakai TierEditor supaya user langsung lihat
+ * rentang tahun & mana yang bakal jadi floating, tanpa perlu klik "Hitung". */
+export function previewTierYearRanges(
+  tiers: KprTierInput[],
+  tenorTahun: number
+): { tahunMulai: number; tahunSelesai: number; sukuBunga: number }[] {
+  const ranges: { tahunMulai: number; tahunSelesai: number; sukuBunga: number }[] = [];
+  let used = 0;
+  for (const t of tiers) {
+    const sisa = tenorTahun - used;
+    if (sisa <= 0) break;
+    const durasi = Math.min(Math.max(t.durasiTahun, 0), sisa);
+    if (durasi <= 0) continue;
+    ranges.push({ tahunMulai: used + 1, tahunSelesai: used + durasi, sukuBunga: t.sukuBunga });
+    used += durasi;
+  }
+  return ranges;
+}
+
+export function previewFloatingTailYears(
+  tiers: KprTierInput[],
+  tenorTahun: number
+): { tahunMulai: number; tahunSelesai: number } | null {
+  const used = previewTierYearRanges(tiers, tenorTahun).reduce(
+    (max, r) => Math.max(max, r.tahunSelesai),
+    0
+  );
+  return used < tenorTahun ? { tahunMulai: used + 1, tahunSelesai: tenorTahun } : null;
 }
