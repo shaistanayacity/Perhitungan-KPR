@@ -142,7 +142,7 @@ export async function generateInvoicePdf(
     ["Pekerjaan", state.pekerjaan || "—"],
     ["Usia", `${state.usia} tahun`],
   ];
-  if (state.gaji !== null) dataPembeliRows.push(["Gaji / Penghasilan", `${formatRupiah(state.gaji)}/bln`]);
+  if (state.gaji !== null) dataPembeliRows.push(["Gaji / Penghasilan", `${state.gaji}/bln`]);
 
   const rowA1 = card("1. Data Pembeli", leftX, colWidth, y, dataPembeliRows);
   const rowA2 = card(
@@ -167,7 +167,8 @@ export async function generateInvoicePdf(
     breakdownRows.push(["Diskon Khusus", `- ${formatRupiah(result.diskonCustom)}`]);
   if (result.diskonPpnDtp > 0)
     breakdownRows.push(["Diskon PPN DTP", `- ${formatRupiah(result.diskonPpnDtp)}`]);
-  breakdownRows.push(["Harga Transaksi", formatRupiah(result.hargaSetelahDiskon)]);
+  breakdownRows.push(["Uang Tanda Jadi (UTJ)", `- ${formatRupiah(result.utj)}`]);
+  breakdownRows.push(["Harga Transaksi", formatRupiah(result.hargaTransaksi)]);
 
   const termRows: [string, string][] = [
     ["Term Pembayaran", getTermLabel(state.term)],

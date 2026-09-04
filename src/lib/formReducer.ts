@@ -9,7 +9,7 @@ export interface FormState {
   nama: string;
   pekerjaan: string;
   usia: number | null;
-  gaji: number | null;
+  gaji: string | null; // label rentang, mis. "Rp4–7 juta" — bukan angka pasti
   cluster: ClusterId | null;
   tipe: string | null;
   unitId: string | null;

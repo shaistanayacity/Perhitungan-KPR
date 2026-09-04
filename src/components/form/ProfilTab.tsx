@@ -3,13 +3,20 @@
 import { FormState, FormAction } from "@/lib/formReducer";
 import { ValidationErrors } from "@/types/buyer";
 import { Field, TextInput } from "@/components/ui";
-import { formatRupiah } from "@/lib/format";
 import { Dispatch } from "react";
 
-const GAJI_MIN = 3_000_000;
-const GAJI_MAX = 50_000_000;
-const GAJI_STEP = 1_000_000;
-const GAJI_DEFAULT = 10_000_000;
+export const GAJI_RANGES = [
+  "< Rp4 juta",
+  "Rp4–7 juta",
+  "Rp8–10 juta",
+  "Rp11–15 juta",
+  "Rp16–20 juta",
+  "Rp21–30 juta",
+  "Rp31–50 juta",
+  "> Rp50 juta",
+] as const;
+
+const GAJI_DEFAULT_INDEX = 2;
 
 export default function ProfilTab({
   state,
@@ -20,7 +27,8 @@ export default function ProfilTab({
   dispatch: Dispatch<FormAction>;
   errors: ValidationErrors;
 }) {
-  const gaji = state.gaji ?? GAJI_DEFAULT;
+  const gajiIndex = state.gaji ? GAJI_RANGES.indexOf(state.gaji as (typeof GAJI_RANGES)[number]) : -1;
+  const activeIndex = gajiIndex >= 0 ? gajiIndex : GAJI_DEFAULT_INDEX;
 
   return (
     <div className="flex flex-col gap-4">
@@ -63,23 +71,25 @@ export default function ProfilTab({
       </Field>
 
       <Field
-        label={`Gaji / Penghasilan: ${formatRupiah(gaji)}${gaji >= GAJI_MAX ? "+" : ""} / bulan`}
+        label={`Gaji / Penghasilan: ${GAJI_RANGES[activeIndex]} / bulan`}
         htmlFor="gaji"
         hint="Opsional — perkiraan saja, untuk membantu rekomendasi skema pembayaran"
       >
         <input
           id="gaji"
           type="range"
-          min={GAJI_MIN}
-          max={GAJI_MAX}
-          step={GAJI_STEP}
-          value={gaji}
-          onChange={(e) => dispatch({ type: "SET_FIELD", field: "gaji", value: Number(e.target.value) })}
+          min={0}
+          max={GAJI_RANGES.length - 1}
+          step={1}
+          value={activeIndex}
+          onChange={(e) =>
+            dispatch({ type: "SET_FIELD", field: "gaji", value: GAJI_RANGES[Number(e.target.value)] })
+          }
           className="w-full"
         />
         <div className="flex justify-between text-xs text-foreground-muted">
-          <span>{formatRupiah(GAJI_MIN)}</span>
-          <span>{formatRupiah(GAJI_MAX)}+</span>
+          <span>{GAJI_RANGES[0]}</span>
+          <span>{GAJI_RANGES[GAJI_RANGES.length - 1]}</span>
         </div>
       </Field>
     </div>

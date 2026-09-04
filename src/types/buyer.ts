@@ -4,7 +4,7 @@ export interface BuyerProfile {
   nama: string;
   pekerjaan: string;
   usia: number;
-  gaji: number | null;
+  gaji: string | null; // label rentang, mis. "Rp4–7 juta"
 }
 
 export interface ValidationErrors {

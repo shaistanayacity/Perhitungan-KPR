@@ -78,11 +78,7 @@ export default function TermTab({
       )}
 
       {state.term === "TUNAI_BERTAHAP" && (
-        <Field
-          label={`Tenor Bertahap: ${state.tenorBertahapBulan} bulan`}
-          htmlFor="tenorBertahap"
-          hint="Diisi manual — default mengikuti konvensi cluster/tipe, tetap bisa diubah"
-        >
+        <Field label={`Tenor Bertahap: ${state.tenorBertahapBulan} bulan`} htmlFor="tenorBertahap">
           <TextInput
             id="tenorBertahap"
             type="number"

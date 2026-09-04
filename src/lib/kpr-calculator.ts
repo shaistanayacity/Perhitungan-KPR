@@ -78,7 +78,8 @@ export interface CalculationResult {
   diskonTunaiKeras: number; // khusus Hard Cash, 0 untuk term lain
   diskonCustom: number;
   diskonPpnDtp: number;
-  hargaSetelahDiskon: number; // "Harga Transaksi"
+  hargaSetelahDiskon: number; // harga setelah diskon, SEBELUM dikurangi UTJ
+  hargaTransaksi: number; // "Harga Transaksi" — hargaSetelahDiskon dikurangi UTJ (sudah dibayar di muka)
 
   // §Term of Payment
   utj: number;
@@ -209,6 +210,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
       diskonCustom,
       diskonPpnDtp,
       hargaSetelahDiskon,
+      hargaTransaksi: hargaSetelahDiskon - utj,
       utj,
       uangMuka: uangMuka80,
       tenorBertahapBulan: null,
@@ -254,6 +256,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
       diskonCustom,
       diskonPpnDtp,
       hargaSetelahDiskon,
+      hargaTransaksi: hargaSetelahDiskon - utj,
       utj,
       uangMuka: 0,
       tenorBertahapBulan: tenorBulan,
@@ -314,6 +317,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     diskonCustom,
     diskonPpnDtp,
     hargaSetelahDiskon,
+    hargaTransaksi: hargaSetelahDiskon - utj,
     utj,
     uangMuka,
     tenorBertahapBulan: null,

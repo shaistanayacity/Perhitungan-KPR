@@ -78,7 +78,7 @@ export default function ResultsPanel({
           <StatRow label="Pekerjaan" value={state.pekerjaan || "—"} />
           <StatRow label="Usia" value={state.usia ? `${state.usia} tahun` : "—"} />
           {state.gaji !== null && (
-            <StatRow label="Gaji / Penghasilan" value={`${formatRupiah(state.gaji)} / bulan`} />
+            <StatRow label="Gaji / Penghasilan" value={`${state.gaji} / bulan`} />
           )}
         </SectionCard>
 
@@ -105,7 +105,8 @@ export default function ResultsPanel({
           {result.diskonPpnDtp > 0 && (
             <StatRow label="Diskon PPN DTP" value={`− ${formatRupiah(result.diskonPpnDtp)}`} negative />
           )}
-          <StatRow label="Harga Transaksi" value={formatRupiah(result.hargaSetelahDiskon)} emphasis />
+          <StatRow label="Uang Tanda Jadi (UTJ)" value={`− ${formatRupiah(result.utj)}`} negative />
+          <StatRow label="Harga Transaksi" value={formatRupiah(result.hargaTransaksi)} emphasis />
         </SectionCard>
 
         <SectionCard eyebrow="Section 4" title="Term of Payment">
