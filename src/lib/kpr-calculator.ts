@@ -196,7 +196,8 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     const diskonTunaiKeras = hargaJual * 0.05;
     const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonTunaiKeras - diskonCustom);
     const hargaSetelahDiskon = hargaJual - diskonTunaiKeras - diskonCustom - diskonPpnDtp;
-    const uangMuka80 = hargaSetelahDiskon * 0.8;
+    // Uang Muka 80% dihitung dari Harga Jual (harga list), BUKAN dari harga setelah diskon.
+    const uangMuka80 = hargaJual * 0.8;
     const sisaPelunasan = hargaSetelahDiskon - utj - uangMuka80;
 
     cashFlow.push(
@@ -231,7 +232,12 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     const hargaSetelahDiskon = hargaJual - diskonCustom - diskonPpnDtp;
     const tenorBulan = Math.max(1, Math.round(input.tenorBertahapBulan ?? 6));
     const sisaPelunasan = hargaSetelahDiskon - utj;
-    const cicilanBulanan = sisaPelunasan / tenorBulan;
+    // Cicilan rutin (angsuran ke-1 s/d ke-(N-1)) = Harga Jual dibagi rata tenor — angka
+    // bulat yang gampang dikomunikasikan. Angsuran terakhir (pelunasan) adalah SISANYA,
+    // menyesuaikan supaya totalnya tetap pas dengan sisaPelunasan (yang sudah
+    // memperhitungkan diskon & UTJ).
+    const cicilanBulanan = hargaJual / tenorBulan;
+    const angsuranTerakhir = sisaPelunasan - cicilanBulanan * (tenorBulan - 1);
 
     // Baris cash flow dirangkum jadi rentang (mis. "Angsuran ke-1 s/d ke-5" + pelunasan)
     // mengikuti konvensi pricelist, bukan satu baris per bulan — supaya invoice tetap
@@ -247,7 +253,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     cashFlow.push({
       hari: "Saat AJB Notaris",
       keterangan: `Angsuran ke-${tenorBulan} (pelunasan)`,
-      nominal: cicilanBulanan,
+      nominal: angsuranTerakhir,
     });
 
     return {
