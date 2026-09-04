@@ -105,8 +105,7 @@ export default function ResultsPanel({
           {result.diskonPpnDtp > 0 && (
             <StatRow label="Diskon PPN DTP" value={`− ${formatRupiah(result.diskonPpnDtp)}`} negative />
           )}
-          <StatRow label="Uang Tanda Jadi (UTJ)" value={`− ${formatRupiah(result.utj)}`} negative />
-          <StatRow label="Harga Transaksi" value={formatRupiah(result.hargaTransaksi)} emphasis />
+          <StatRow label="Harga Transaksi" value={formatRupiah(result.hargaSetelahDiskon)} emphasis />
         </SectionCard>
 
         <SectionCard eyebrow="Section 4" title="Term of Payment">

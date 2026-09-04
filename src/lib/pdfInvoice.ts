@@ -167,8 +167,7 @@ export async function generateInvoicePdf(
     breakdownRows.push(["Diskon Khusus", `- ${formatRupiah(result.diskonCustom)}`]);
   if (result.diskonPpnDtp > 0)
     breakdownRows.push(["Diskon PPN DTP", `- ${formatRupiah(result.diskonPpnDtp)}`]);
-  breakdownRows.push(["Uang Tanda Jadi (UTJ)", `- ${formatRupiah(result.utj)}`]);
-  breakdownRows.push(["Harga Transaksi", formatRupiah(result.hargaTransaksi)]);
+  breakdownRows.push(["Harga Transaksi", formatRupiah(result.hargaSetelahDiskon)]);
 
   const termRows: [string, string][] = [
     ["Term Pembayaran", getTermLabel(state.term)],
