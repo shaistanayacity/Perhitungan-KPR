@@ -64,7 +64,7 @@ export default function PropertiTab({
         </Select>
       </Field>
 
-      <Field label="Blok / No Unit" htmlFor="unit">
+      <Field label="Blok" htmlFor="unit">
         <Select
           id="unit"
           value={state.unitId ?? ""}
@@ -72,11 +72,11 @@ export default function PropertiTab({
           onChange={(e) => dispatch({ type: "SET_UNIT", unitId: e.target.value })}
         >
           <option value="" disabled>
-            {state.tipe ? "Pilih blok / unit…" : "Pilih tipe dahulu"}
+            {state.tipe ? "Pilih blok…" : "Pilih tipe dahulu"}
           </option>
           {units.map((u) => (
             <option key={u.id} value={u.id}>
-              Blok {u.blok} · No. {u.noUnit}
+              Blok {u.blok}
             </option>
           ))}
         </Select>
@@ -89,9 +89,8 @@ export default function PropertiTab({
           </p>
           <StatRow label="Luas Bangunan (LB)" value={`${selectedUnit.lb} m²`} />
           <StatRow label="Luas Tanah (LT)" value={`${selectedUnit.lt} m²`} />
-          <StatRow label="Blok / Unit" value={`${selectedUnit.blok} / ${selectedUnit.noUnit}`} />
-          <StatRow label="Harga Asli" value={formatRupiah(selectedUnit.hargaAsli)} />
-          <StatRow label="Harga Properti (KPR)" value={formatRupiah(selectedUnit.hargaKpr)} emphasis />
+          <StatRow label="Blok" value={selectedUnit.blok} />
+          <StatRow label="Harga Jual" value={formatRupiah(selectedUnit.hargaAsli)} emphasis />
         </div>
       )}
     </div>

@@ -24,8 +24,8 @@ export const MONTANA_UNITS: PropertyUnit[] = [
   { id: "montana-newgwen-f5", cluster: "MONTANA", tipe: "NEW GWEN", lb: 42, lt: 72, blok: "F5", noUnit: "02-07", hargaAsli: 675_000_000, hargaKpr: 626_000_000 },
   { id: "montana-darlene-f1", cluster: "MONTANA", tipe: "DARLENE", lb: 45, lt: 91, blok: "F1", noUnit: "05", hargaAsli: 795_000_000, hargaKpr: 735_000_000 },
   { id: "montana-gwenhook-f15", cluster: "MONTANA", tipe: "GWEN HOOK", lb: 38, lt: 106, blok: "F15", noUnit: "08", hargaAsli: 800_000_000, hargaKpr: 739_000_000, specialUnit: true },
-  { id: "montana-newgwenhook-f5-01", cluster: "MONTANA", tipe: "NEW GWEN HOOK", lb: 42, lt: 106, blok: "F5", noUnit: "01", hargaAsli: 840_000_000, hargaKpr: 775_000_000, specialUnit: true },
-  { id: "montana-newgwenhook-f5-08", cluster: "MONTANA", tipe: "NEW GWEN HOOK", lb: 45, lt: 112, blok: "F5", noUnit: "08", hargaAsli: 880_000_000, hargaKpr: 812_000_000, specialUnit: true },
+  { id: "montana-newgwenhook-f5-01", cluster: "MONTANA", tipe: "NEW GWEN HOOK", lb: 42, lt: 106, blok: "F5-1", noUnit: "01", hargaAsli: 840_000_000, hargaKpr: 775_000_000, specialUnit: true },
+  { id: "montana-newgwenhook-f5-08", cluster: "MONTANA", tipe: "NEW GWEN HOOK", lb: 45, lt: 112, blok: "F5-8", noUnit: "08", hargaAsli: 880_000_000, hargaKpr: 812_000_000, specialUnit: true },
   { id: "montana-angelinehook-f7", cluster: "MONTANA", tipe: "ANGELINE HOOK", lb: 45, lt: 133, blok: "F7", noUnit: "01", hargaAsli: 950_000_000, hargaKpr: 875_000_000, specialUnit: true },
 ];
 

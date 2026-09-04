@@ -2,7 +2,7 @@
 
 import { FormState } from "@/lib/formReducer";
 import { PropertyUnit } from "@/lib/pricelist";
-import { CalculationResult, getTermLabel } from "@/lib/kpr-calculator";
+import { CalculationResult, getTermLabel, KPR_MODE_LABELS } from "@/lib/kpr-calculator";
 import { formatRupiah, formatPercent } from "@/lib/format";
 import { SectionCard, StatRow, Pill, Button } from "@/components/ui";
 
@@ -42,6 +42,8 @@ export default function ResultsPanel({
     );
   }
 
+  const isKpr = result.pokokKpr !== null;
+
   return (
     <div className="flex h-full flex-col gap-3">
       <div
@@ -50,19 +52,19 @@ export default function ResultsPanel({
       >
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-6">
           <div>
-            <Pill tone="gold">{getTermLabel(state.term, state.dpPercent)}</Pill>
+            <Pill tone="gold">{getTermLabel(state.term)}</Pill>
             <p className="font-brand mt-2.5 text-2xl text-foreground">
               {unit.tipe} · {unit.cluster}
             </p>
-            <p className="text-sm text-foreground-muted">Blok {unit.blok} · No. {unit.noUnit}</p>
+            <p className="text-sm text-foreground-muted">Blok {unit.blok}</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-foreground-muted">
-              {result.tierBreakdown ? "Estimasi Angsuran Awal" : "Estimasi Angsuran / Cicilan Bulanan"}
+              {isKpr ? "Estimasi Angsuran Awal" : "Estimasi Angsuran / Cicilan Bulanan"}
             </p>
             <p className="font-brand text-3xl text-foreground">
-              {result.angsuranBulananKpr !== null
-                ? formatRupiah(result.angsuranBulananKpr)
+              {result.angsuranAwalKpr !== null
+                ? formatRupiah(result.angsuranAwalKpr)
                 : result.cicilanBulanan !== null
                   ? formatRupiah(result.cicilanBulanan)
                   : "—"}
@@ -73,34 +75,23 @@ export default function ResultsPanel({
 
         <SectionCard eyebrow="Section 1" title="Data Pembeli">
           <StatRow label="Nama" value={state.nama || "—"} />
-          <StatRow label="Pekerjaan" value={state.pekerjaan} />
-          <StatRow
-            label="Usia"
-            value={state.usia ? `${state.usia} tahun` : "—"}
-          />
+          <StatRow label="Pekerjaan" value={state.pekerjaan || "—"} />
+          <StatRow label="Usia" value={state.usia ? `${state.usia} tahun` : "—"} />
+          {state.gaji !== null && (
+            <StatRow label="Gaji / Penghasilan" value={`${state.gaji} / bulan`} />
+          )}
         </SectionCard>
 
         <SectionCard eyebrow="Section 2" title="Data Properti">
           <StatRow label="Cluster" value={unit.cluster} />
           <StatRow label="Tipe" value={unit.tipe} />
-          <StatRow
-            label="Lokasi (Blok / Unit)"
-            value={`${unit.blok} / ${unit.noUnit}`}
-          />
-          <StatRow
-            label="Luas Bangunan / Tanah"
-            value={`${unit.lb} m² / ${unit.lt} m²`}
-          />
-          <StatRow label="Harga Asli" value={formatRupiah(unit.hargaAsli)} />
-          <StatRow
-            label="Harga Properti (KPR)"
-            value={formatRupiah(unit.hargaKpr)}
-            emphasis
-          />
+          <StatRow label="Blok" value={unit.blok} />
+          <StatRow label="Luas Bangunan / Tanah" value={`${unit.lb} m² / ${unit.lt} m²`} />
+          <StatRow label="Harga Jual" value={formatRupiah(unit.hargaAsli)} emphasis />
         </SectionCard>
 
         <SectionCard eyebrow="Section 3" title="Breakdown Harga">
-          <StatRow label="Harga Properti (KPR)" value={formatRupiah(result.harga)} />
+          <StatRow label="Harga Jual" value={formatRupiah(result.hargaJual)} />
           {result.diskonTunaiKeras > 0 && (
             <StatRow
               label="Diskon Tunai Keras (5%)"
@@ -108,101 +99,73 @@ export default function ResultsPanel({
               negative
             />
           )}
-          {result.diskonPreLaunching > 0 && (
-            <StatRow
-              label="Diskon Pre-Launching"
-              value={`− ${formatRupiah(result.diskonPreLaunching)}`}
-              negative
-            />
+          {result.diskonCustom > 0 && (
+            <StatRow label="Diskon Khusus" value={`− ${formatRupiah(result.diskonCustom)}`} negative />
           )}
-          <StatRow
-            label="Harga Setelah Diskon"
-            value={formatRupiah(result.hargaSetelahDiskon)}
-            emphasis
-          />
-          <p className="mt-2 text-xs text-foreground-muted">
-            *Harga Properti (KPR) sudah termasuk potongan PPN DTP dari Harga Asli sesuai pricelist.
-          </p>
+          {result.diskonPpnDtp > 0 && (
+            <StatRow label="Diskon PPN DTP" value={`− ${formatRupiah(result.diskonPpnDtp)}`} negative />
+          )}
+          <StatRow label="Harga Transaksi" value={formatRupiah(result.hargaSetelahDiskon)} emphasis />
         </SectionCard>
 
         <SectionCard eyebrow="Section 4" title="Term of Payment">
-          <StatRow label="Term Pembayaran" value={getTermLabel(state.term, state.dpPercent)} />
-          <StatRow
-            label="Uang Tanda Jadi (UTJ)"
-            value={formatRupiah(result.utj)}
-          />
-          {result.uangMuka > 0 && (
-            <StatRow label="Uang Muka" value={formatRupiah(result.uangMuka)} />
-          )}
+          <StatRow label="Term Pembayaran" value={getTermLabel(state.term)} />
+          <StatRow label="Uang Tanda Jadi (UTJ)" value={formatRupiah(result.utj)} />
+          {result.uangMuka > 0 && <StatRow label="Uang Muka" value={formatRupiah(result.uangMuka)} />}
           {result.cicilanBulanan !== null && (
             <StatRow
               label={`Cicilan Bulanan (${result.tenorBertahapBulan} bulan)`}
               value={formatRupiah(result.cicilanBulanan)}
             />
           )}
-          <StatRow
-            label="Sisa Pelunasan"
-            value={formatRupiah(result.sisaPelunasan)}
-            emphasis
-          />
+          <StatRow label="Sisa Pelunasan" value={formatRupiah(result.sisaPelunasan)} emphasis />
         </SectionCard>
 
-        {result.pokokKpr !== null && result.tierBreakdown && (
-          <SectionCard eyebrow="Section 5" title="KPR Breakdown (Berjenjang)">
-            <StatRow label="Pokok KPR" value={formatRupiah(result.pokokKpr)} />
+        {isKpr && (
+          <SectionCard
+            eyebrow="Section 5"
+            title={`KPR Breakdown (${result.kprMode ? KPR_MODE_LABELS[result.kprMode] : "KPR"})`}
+          >
+            <StatRow label="Pokok KPR" value={formatRupiah(result.pokokKpr ?? 0)} />
             <StatRow label="Tenor Total" value={`${result.tenorKprTahun} tahun`} />
             <div className="mt-3 overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="text-xs text-foreground-muted">
-                    <th className="pb-1.5 font-medium">Tier</th>
-                    <th className="pb-1.5 font-medium">Durasi</th>
-                    <th className="pb-1.5 font-medium">
-                      {result.tierMode === "BUNGA" ? "Bunga" : "Kenaikan"}
-                    </th>
+                    <th className="pb-1.5 font-medium">Tahun</th>
+                    <th className="pb-1.5 font-medium">Suku Bunga</th>
                     <th className="pb-1.5 text-right font-medium">Angsuran/bln</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {result.tierBreakdown.map((t) => (
+                  {result.tierBreakdown?.map((t) => (
                     <tr key={t.tierKe} className="border-t border-border">
-                      <td className="py-1.5 font-medium text-foreground">{t.tierKe}</td>
-                      <td className="py-1.5 text-foreground-muted">{t.durasiTahun.toFixed(1)} thn</td>
-                      <td className="py-1.5 text-foreground-muted">
-                        {result.tierMode === "BUNGA"
-                          ? formatPercent(t.nilai)
-                          : t.tierKe === 1
-                            ? "Basis"
-                            : `+${formatPercent(t.nilai)}`}
+                      <td className="py-1.5 font-medium text-foreground">
+                        {t.tahunMulai}
+                        {t.tahunSelesai > t.tahunMulai ? `–${t.tahunSelesai}` : ""}
                       </td>
+                      <td className="py-1.5 text-foreground-muted">{formatPercent(t.sukuBunga)}</td>
                       <td className="py-1.5 text-right font-semibold tabular-nums text-foreground">
                         {formatRupiah(t.angsuranBulanan)}
                       </td>
                     </tr>
                   ))}
+                  {result.floatingTail && (
+                    <tr className="border-t border-border">
+                      <td className="py-1.5 font-medium text-foreground">
+                        {result.floatingTail.tahunMulai}
+                        {result.floatingTail.tahunSelesai > result.floatingTail.tahunMulai
+                          ? `–${result.floatingTail.tahunSelesai}`
+                          : ""}
+                      </td>
+                      <td className="py-1.5 text-foreground-muted" colSpan={2}>
+                        Floating — mengikuti suku bunga bank
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
-            <p className="mt-2 text-xs text-foreground-muted">
-              *Nominal estimasi berdasarkan rumus anuitas standar — suku bunga &amp; persetujuan
-              akhir ditentukan oleh Bank pemberi KPR.
-            </p>
-          </SectionCard>
-        )}
-
-        {result.pokokKpr !== null && !result.tierBreakdown && (
-          <SectionCard eyebrow="Section 5" title="KPR Breakdown">
-            <StatRow label="Pokok KPR" value={formatRupiah(result.pokokKpr)} />
-            <StatRow label="Tenor" value={`${result.tenorKprTahun} tahun`} />
-            <StatRow
-              label="Suku Bunga"
-              value={`${formatPercent(result.sukuBungaKpr ?? 0)} p.a.`}
-            />
-            <StatRow
-              label="Angsuran Bulanan (Estimasi)"
-              value={formatRupiah(result.angsuranBulananKpr ?? 0)}
-              emphasis
-            />
             <p className="mt-2 text-xs text-foreground-muted">
               *Nominal estimasi berdasarkan rumus anuitas standar — suku bunga &amp; persetujuan
               akhir ditentukan oleh Bank pemberi KPR.

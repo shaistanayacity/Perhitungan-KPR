@@ -1,49 +1,47 @@
-import { ClusterId } from "./pricelist";
-import { TermOfPayment, TierMode, KprTierInput } from "./kpr-calculator";
+import { ClusterId, getUnitById, getBertahapTenorBulan } from "./pricelist";
+import { TermOfPayment, KprMode, KprTierInput } from "./kpr-calculator";
 import { BankPreset } from "./bankPresets";
-import { Pekerjaan } from "@/types/buyer";
 import { DEFAULT_SUKU_BUNGA } from "./simulationLog";
 
 export type TabId = "profil" | "properti" | "term";
 
 export interface FormState {
   nama: string;
-  pekerjaan: Pekerjaan;
+  pekerjaan: string;
   usia: number | null;
+  gaji: string | null; // label rentang, mis. "Rp4–7 juta" — bukan angka pasti
   cluster: ClusterId | null;
   tipe: string | null;
   unitId: string | null;
   term: TermOfPayment;
+  diskonCustom: number;
+  tenorBertahapBulan: number;
   tenorTahun: number;
-  sukuBunga: number;
-  diskonPreLaunching: number;
   dpPercent: number;
-  tierMode: TierMode;
+  kprMode: KprMode;
   tiers: KprTierInput[];
   activeTab: TabId;
 }
 
-function defaultTiers(rate: number): KprTierInput[] {
-  return [
-    { durasiTahun: 2, nilai: rate },
-    { durasiTahun: 0, nilai: rate }, // durasiTahun tier terakhir diabaikan (otomatis = sisa tenor)
-  ];
+function defaultTiers(rate: number, tenorTahun: number): KprTierInput[] {
+  return [{ durasiTahun: Math.min(2, tenorTahun), sukuBunga: rate }];
 }
 
 export const initialFormState: FormState = {
   nama: "",
-  pekerjaan: "Karyawan",
+  pekerjaan: "",
   usia: null,
+  gaji: null,
   cluster: null,
   tipe: null,
   unitId: null,
   term: "HARD_CASH",
+  diskonCustom: 0,
+  tenorBertahapBulan: 6,
   tenorTahun: 20,
-  sukuBunga: DEFAULT_SUKU_BUNGA,
-  diskonPreLaunching: 0,
   dpPercent: 0,
-  tierMode: "BUNGA",
-  tiers: defaultTiers(DEFAULT_SUKU_BUNGA),
+  kprMode: "FIX",
+  tiers: defaultTiers(DEFAULT_SUKU_BUNGA, 20),
   activeTab: "profil",
 };
 
@@ -54,7 +52,7 @@ export type FormAction =
   | { type: "SET_UNIT"; unitId: string }
   | { type: "SET_TAB"; tab: TabId }
   | { type: "APPLY_DEFAULT_RATE"; rate: number }
-  | { type: "SET_TIER_MODE"; mode: TierMode }
+  | { type: "SET_KPR_MODE"; mode: KprMode }
   | { type: "ADD_TIER" }
   | { type: "REMOVE_TIER"; index: number }
   | { type: "UPDATE_TIER"; index: number; field: keyof KprTierInput; value: number }
@@ -69,30 +67,30 @@ export function formReducer(state: FormState, action: FormAction): FormState {
       return { ...state, cluster: action.cluster, tipe: null, unitId: null };
     case "SET_TIPE":
       return { ...state, tipe: action.tipe, unitId: null };
-    case "SET_UNIT":
-      return { ...state, unitId: action.unitId };
+    case "SET_UNIT": {
+      const unit = getUnitById(action.unitId);
+      return {
+        ...state,
+        unitId: action.unitId,
+        // Default tenor Tunai Bertahap ikut konvensi cluster/tipe — tetap bisa diedit manual.
+        tenorBertahapBulan: unit ? getBertahapTenorBulan(unit.cluster, unit.tipe) : state.tenorBertahapBulan,
+      };
+    }
     case "SET_TAB":
       return { ...state, activeTab: action.tab };
     case "APPLY_DEFAULT_RATE":
-      return { ...state, sukuBunga: action.rate };
-    case "SET_TIER_MODE":
+      return { ...state, tiers: defaultTiers(action.rate, state.tenorTahun) };
+    case "SET_KPR_MODE":
       return {
         ...state,
-        tierMode: action.mode,
-        tiers:
-          action.mode === "BUNGA"
-            ? defaultTiers(state.sukuBunga)
-            : [
-                { durasiTahun: 2, nilai: 0 },
-                { durasiTahun: 0, nilai: 0.05 },
-              ],
+        kprMode: action.mode,
+        // KPR Fix cuma 1 periode fixed lalu floating — pangkas ke tier pertama saja.
+        tiers: action.mode === "FIX" ? state.tiers.slice(0, 1) : state.tiers,
       };
     case "ADD_TIER": {
-      if (state.tiers.length >= 6) return state; // batas wajar biar UI tidak meluber
-      const tiers = [...state.tiers];
-      const defaultNilai = state.tierMode === "BUNGA" ? state.sukuBunga : 0.05;
-      tiers.splice(tiers.length - 1, 0, { durasiTahun: 1, nilai: defaultNilai });
-      return { ...state, tiers };
+      if (state.kprMode === "FIX" || state.tiers.length >= 6) return state; // batas wajar biar UI tidak meluber
+      const last = state.tiers[state.tiers.length - 1];
+      return { ...state, tiers: [...state.tiers, { durasiTahun: 1, sukuBunga: last?.sukuBunga ?? 0.03 }] };
     }
     case "REMOVE_TIER": {
       if (state.tiers.length <= 1) return state;
@@ -105,17 +103,12 @@ export function formReducer(state: FormState, action: FormAction): FormState {
     }
     case "APPLY_BANK_PRESET": {
       const { durasiTahun, sukuBunga } = action.preset.tierPertama;
-      return {
-        ...state,
-        tierMode: "BUNGA",
-        tiers: [
-          { durasiTahun, nilai: sukuBunga },
-          { durasiTahun: 0, nilai: state.sukuBunga },
-        ],
-      };
+      const tiers = [...state.tiers];
+      tiers[0] = { durasiTahun, sukuBunga };
+      return { ...state, tiers };
     }
     case "RESET":
-      return { ...initialFormState, sukuBunga: state.sukuBunga, tiers: defaultTiers(state.sukuBunga) };
+      return { ...initialFormState, tiers: defaultTiers(DEFAULT_SUKU_BUNGA, initialFormState.tenorTahun) };
     default:
       return state;
   }

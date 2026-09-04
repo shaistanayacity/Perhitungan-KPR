@@ -31,11 +31,11 @@ export default function Home() {
       validateForm({
         nama: state.nama,
         usia: state.usia,
-        tenor: state.tenorTahun,
-        sukuBunga: state.sukuBunga,
         unitId: state.unitId,
+        term: state.term,
+        tenorTahun: state.tenorTahun,
       }),
-    [state.nama, state.usia, state.tenorTahun, state.sukuBunga, state.unitId]
+    [state.nama, state.usia, state.unitId, state.term, state.tenorTahun]
   );
 
   const canCalculate = !hasErrors(errors);
@@ -46,16 +46,16 @@ export default function Home() {
     const calc = calculateSimulation({
       unit,
       term: state.term,
+      diskonCustom: state.diskonCustom,
+      tenorBertahapBulan: state.tenorBertahapBulan,
       tenorTahun: state.tenorTahun,
-      sukuBunga: state.sukuBunga,
-      diskonPreLaunching: state.diskonPreLaunching,
       dpPercent: state.dpPercent,
-      tierMode: state.tierMode,
+      kprMode: state.kprMode,
       tiers: state.tiers,
     });
     setResult(calc);
     void logSimulation(
-      { nama: state.nama, pekerjaan: state.pekerjaan, usia: state.usia ?? 0 },
+      { nama: state.nama, pekerjaan: state.pekerjaan, usia: state.usia ?? 0, gaji: state.gaji },
       unit,
       state.term,
       calc
@@ -81,10 +81,10 @@ export default function Home() {
 
   async function handleShare() {
     if (!unit || !result) return;
-    const text = `Simulasi KPR ${unit.cluster} - ${unit.tipe}\nHarga Properti (KPR): ${formatRupiah(
-      unit.hargaKpr
+    const text = `Simulasi KPR ${unit.cluster} - ${unit.tipe}\nHarga Jual: ${formatRupiah(
+      unit.hargaAsli
     )}\nAngsuran/Cicilan: ${formatRupiah(
-      result.angsuranBulananKpr ?? result.cicilanBulanan ?? 0
+      result.angsuranAwalKpr ?? result.cicilanBulanan ?? 0
     )}\nDihitung via KPR Calculator Shaistanaya City`;
     try {
       if (navigator.share) {

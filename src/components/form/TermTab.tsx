@@ -3,10 +3,10 @@
 import { Dispatch } from "react";
 import { FormState, FormAction } from "@/lib/formReducer";
 import { ValidationErrors } from "@/types/buyer";
-import { getBertahapTenorBulan, getUnitById } from "@/lib/pricelist";
-import { TermOfPayment, getTermLabel } from "@/lib/kpr-calculator";
+import { getUnitById } from "@/lib/pricelist";
+import { TermOfPayment, KprMode, KPR_MODE_LABELS } from "@/lib/kpr-calculator";
 import { Field, RadioCard, TextInput } from "@/components/ui";
-import { formatPercent, formatRupiah } from "@/lib/format";
+import { formatRupiah } from "@/lib/format";
 import TierEditor from "./TierEditor";
 
 export default function TermTab({
@@ -19,16 +19,7 @@ export default function TermTab({
   errors: ValidationErrors;
 }) {
   const unit = state.unitId ? getUnitById(state.unitId) : undefined;
-  const tenorBertahap = unit ? getBertahapTenorBulan(unit.cluster, unit.tipe) : null;
-  const isBerjenjang = state.term === "KPR_BERJENJANG";
-  const isBerjenjangBunga = isBerjenjang && state.tierMode === "BUNGA";
-  const showDpEditor = state.term === "KPR_DP0" || isBerjenjang;
-  // Tenor total dipakai di semua skema KPR (termasuk kedua mode Berjenjang).
-  const tenorEnabled = state.term === "HARD_CASH" || state.term === "KPR_DP0" || isBerjenjang;
-  // Field suku bunga tunggal dipakai untuk Hard Cash, KPR DP Custom, dan mode
-  // Angsuran Berjenjang (satu rate tetap) — tapi TIDAK untuk mode Bunga
-  // Berjenjang, karena tiap tier punya suku bunganya sendiri di TierEditor.
-  const rateFieldEnabled = state.term === "HARD_CASH" || state.term === "KPR_DP0" || (isBerjenjang && !isBerjenjangBunga);
+  const isKpr = state.term === "KPR";
 
   const terms: { value: TermOfPayment; title: string; subtitle: string }[] = [
     {
@@ -38,18 +29,13 @@ export default function TermTab({
     },
     {
       value: "TUNAI_BERTAHAP",
-      title: `Tunai Bertahap ${tenorBertahap ?? "6/9"} Bulan (Tanpa UM)`,
-      subtitle: "Cicilan flat tanpa uang muka, lunas saat AJB — tanpa bank",
+      title: "Tunai Bertahap 6 Bulan (Tanpa UM)",
+      subtitle: "Cicilan flat tanpa uang muka, tenor diisi manual — tanpa bank",
     },
     {
-      value: "KPR_DP0",
-      title: getTermLabel("KPR_DP0", state.dpPercent),
-      subtitle: "Uang muka bisa 0% atau custom, sisa harga diajukan sebagai KPR bank",
-    },
-    {
-      value: "KPR_BERJENJANG",
-      title: "KPR Berjenjang",
-      subtitle: "Bunga atau angsuran bertingkat per periode, bukan flat sepanjang tenor",
+      value: "KPR",
+      title: "KPR",
+      subtitle: "Fix (fixed period lalu floating) atau Berjenjang (bunga bertingkat manual)",
     },
   ];
 
@@ -72,134 +58,137 @@ export default function TermTab({
         </div>
       </div>
 
-      <Field
-        label={`Tenor KPR: ${state.tenorTahun} tahun`}
-        htmlFor="tenor"
-        error={errors.tenor}
-        hint={tenorEnabled ? undefined : "Tidak dipakai pada skema Tunai Bertahap"}
-      >
-        <input
-          id="tenor"
-          type="range"
-          min={1}
-          max={30}
-          step={1}
-          value={state.tenorTahun}
-          disabled={!tenorEnabled}
-          onChange={(e) =>
-            dispatch({ type: "SET_FIELD", field: "tenorTahun", value: Number(e.target.value) })
-          }
-          className="w-full disabled:opacity-40"
-        />
-        <div className="flex justify-between text-xs text-foreground-muted">
-          <span>1 thn</span>
-          <span>30 thn</span>
-        </div>
-      </Field>
-
-      <Field
-        label={`Suku Bunga KPR: ${formatPercent(state.sukuBunga)} p.a.`}
-        htmlFor="rate"
-        error={errors.sukuBunga}
-        hint={
-          isBerjenjangBunga
-            ? "Tidak dipakai — suku bunga diatur per tier di bawah"
-            : "Default sesuai rate market — dapat diubah manual (0,5%–10% p.a.)"
-        }
-      >
-        <TextInput
-          id="rate"
-          type="number"
-          min={0.5}
-          max={10}
-          step={0.01}
-          disabled={!rateFieldEnabled}
-          value={Number((state.sukuBunga * 100).toFixed(2))}
-          onChange={(e) =>
-            dispatch({
-              type: "SET_FIELD",
-              field: "sukuBunga",
-              value: Number(e.target.value) / 100,
-            })
-          }
-          className="disabled:opacity-40"
-        />
-      </Field>
-
-      {showDpEditor && (
+      {(state.term === "HARD_CASH" || state.term === "TUNAI_BERTAHAP" || isKpr) && (
         <Field
-          label={`Uang Muka (DP): ${(state.dpPercent * 100).toFixed(0)}%`}
-          htmlFor="dpNominal"
-          hint={
-            unit
-              ? "Isi nominal Rupiah langsung, atau geser slider persentase — keduanya saling menyesuaikan"
-              : "Pilih properti dahulu untuk mengisi nominal DP"
-          }
+          label="Diskon Khusus (opsional)"
+          htmlFor="diskonCustom"
+          hint="Default Rp 0 — isi bila unit mendapat diskon negosiasi untuk case tertentu"
         >
           <TextInput
-            id="dpNominal"
+            id="diskonCustom"
             type="number"
             min={0}
-            max={unit ? unit.hargaKpr * 0.9 : undefined}
             step={1_000_000}
-            disabled={!unit}
-            value={unit ? Math.round(unit.hargaKpr * state.dpPercent) : 0}
-            onChange={(e) => {
-              if (!unit) return;
-              const nominal = Math.max(0, Number(e.target.value));
-              const percent = unit.hargaKpr > 0 ? nominal / unit.hargaKpr : 0;
-              dispatch({ type: "SET_FIELD", field: "dpPercent", value: Math.min(percent, 0.9) });
-            }}
-            className="mb-2 disabled:opacity-40"
-          />
-          {unit && (
-            <p className="mb-2 text-xs text-foreground-muted">
-              ≈ {formatRupiah(unit.hargaKpr * state.dpPercent)} dari harga properti {formatRupiah(unit.hargaKpr)}
-            </p>
-          )}
-          <input
-            id="dpPercent"
-            type="range"
-            min={0}
-            max={90}
-            step={5}
-            value={state.dpPercent * 100}
-            disabled={!unit}
+            value={state.diskonCustom}
             onChange={(e) =>
-              dispatch({ type: "SET_FIELD", field: "dpPercent", value: Number(e.target.value) / 100 })
+              dispatch({ type: "SET_FIELD", field: "diskonCustom", value: Number(e.target.value) })
             }
-            className="w-full disabled:opacity-40"
           />
-          <div className="flex justify-between text-xs text-foreground-muted">
-            <span>0%</span>
-            <span>90%</span>
-          </div>
         </Field>
       )}
 
-      {isBerjenjang && <TierEditor state={state} dispatch={dispatch} />}
-
-      {state.term !== "HARD_CASH" && (
-        <Field
-          label="Diskon Pre-Launching (opsional)"
-          htmlFor="diskonPre"
-          hint="Default Rp 0 — isi bila unit sedang mendapat promo pre-launching"
-        >
+      {state.term === "TUNAI_BERTAHAP" && (
+        <Field label={`Tenor Bertahap: ${state.tenorBertahapBulan} bulan`} htmlFor="tenorBertahap">
           <TextInput
-            id="diskonPre"
+            id="tenorBertahap"
             type="number"
-            min={0}
-            step={1_000_000}
-            value={state.diskonPreLaunching}
+            min={1}
+            max={36}
+            value={state.tenorBertahapBulan}
             onChange={(e) =>
-              dispatch({
-                type: "SET_FIELD",
-                field: "diskonPreLaunching",
-                value: Number(e.target.value),
-              })
+              dispatch({ type: "SET_FIELD", field: "tenorBertahapBulan", value: Number(e.target.value) })
             }
           />
         </Field>
+      )}
+
+      {isKpr && (
+        <>
+          <div>
+            <p className="mb-2 text-sm font-medium text-foreground">Jenis KPR</p>
+            <div className="flex flex-col gap-2.5">
+              {(["FIX", "BERJENJANG"] as KprMode[]).map((mode) => (
+                <RadioCard
+                  key={mode}
+                  name="kprMode"
+                  value={mode}
+                  checked={state.kprMode === mode}
+                  onChange={(v) => dispatch({ type: "SET_KPR_MODE", mode: v as KprMode })}
+                  title={KPR_MODE_LABELS[mode]}
+                  subtitle={
+                    mode === "FIX"
+                      ? "Contoh: 2 tahun pertama fixed, sisanya floating mengikuti bank"
+                      : "Contoh: tahun 1–3 bunga A, tahun 4–6 bunga B, sisanya floating"
+                  }
+                />
+              ))}
+            </div>
+          </div>
+
+          <Field
+            label={`Tenor KPR Total: ${state.tenorTahun} tahun`}
+            htmlFor="tenor"
+            error={errors.tenorKpr}
+          >
+            <input
+              id="tenor"
+              type="range"
+              min={1}
+              max={30}
+              step={1}
+              value={state.tenorTahun}
+              onChange={(e) =>
+                dispatch({ type: "SET_FIELD", field: "tenorTahun", value: Number(e.target.value) })
+              }
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-foreground-muted">
+              <span>1 thn</span>
+              <span>30 thn</span>
+            </div>
+          </Field>
+
+          <Field
+            label={`Uang Muka (DP): ${(state.dpPercent * 100).toFixed(0)}%`}
+            htmlFor="dpNominal"
+            hint={
+              unit
+                ? "Isi nominal Rupiah langsung, atau geser slider persentase — keduanya saling menyesuaikan"
+                : "Pilih properti dahulu untuk mengisi nominal DP"
+            }
+          >
+            <TextInput
+              id="dpNominal"
+              type="number"
+              min={0}
+              max={unit ? unit.hargaAsli * 0.9 : undefined}
+              step={1_000_000}
+              disabled={!unit}
+              value={unit ? Math.round(unit.hargaAsli * state.dpPercent) : 0}
+              onChange={(e) => {
+                if (!unit) return;
+                const nominal = Math.max(0, Number(e.target.value));
+                const percent = unit.hargaAsli > 0 ? nominal / unit.hargaAsli : 0;
+                dispatch({ type: "SET_FIELD", field: "dpPercent", value: Math.min(percent, 0.9) });
+              }}
+              className="mb-2 disabled:opacity-40"
+            />
+            {unit && (
+              <p className="mb-2 text-xs text-foreground-muted">
+                ≈ {formatRupiah(unit.hargaAsli * state.dpPercent)} dari Harga Jual {formatRupiah(unit.hargaAsli)}
+              </p>
+            )}
+            <input
+              id="dpPercent"
+              type="range"
+              min={0}
+              max={90}
+              step={5}
+              value={state.dpPercent * 100}
+              disabled={!unit}
+              onChange={(e) =>
+                dispatch({ type: "SET_FIELD", field: "dpPercent", value: Number(e.target.value) / 100 })
+              }
+              className="w-full disabled:opacity-40"
+            />
+            <div className="flex justify-between text-xs text-foreground-muted">
+              <span>0%</span>
+              <span>90%</span>
+            </div>
+          </Field>
+
+          <TierEditor state={state} dispatch={dispatch} />
+        </>
       )}
     </div>
   );
