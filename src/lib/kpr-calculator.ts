@@ -111,6 +111,18 @@ function hitungDiskonPpnDtp(hargaSetelahDiskonLain: number): number {
   return Math.max(0, Math.floor(nilai / 1_000_000) * 1_000_000);
 }
 
+/** Override manual khusus tipe BIANCA Garden (permintaan user) — dikurangi Rp1 juta
+ * lagi dari hasil pembulatan normal, berlaku di semua term. Unit lain TIDAK
+ * terpengaruh sama sekali, walau kondisi pembulatannya mirip — ini bukan aturan
+ * umum, murni override manual untuk tipe unit ini. */
+function hitungDiskonPpnDtpUntukUnit(hargaSetelahDiskonLain: number, unit: PropertyUnit): number {
+  const diskon = hitungDiskonPpnDtp(hargaSetelahDiskonLain);
+  if (unit.tipe.toUpperCase() === "BIANCA GARDEN") {
+    return Math.max(0, diskon - 1_000_000);
+  }
+  return diskon;
+}
+
 /** Susun tier eksplisit (dalam bulan) — TIDAK auto-mengisi sisa tenor ke tier
  * terakhir seperti versi lama. Kalau total durasi tier < tenor, sisanya jadi
  * floating tail (dikembalikan terpisah oleh pemanggil). */
@@ -194,7 +206,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
 
   if (term === "HARD_CASH") {
     const diskonTunaiKeras = hargaJual * 0.05;
-    const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonTunaiKeras - diskonCustom);
+    const diskonPpnDtp = hitungDiskonPpnDtpUntukUnit(hargaJual - diskonTunaiKeras - diskonCustom, unit);
     const hargaSetelahDiskon = hargaJual - diskonTunaiKeras - diskonCustom - diskonPpnDtp;
     // Uang Muka 80% dihitung dari Harga Jual (harga list), BUKAN dari harga setelah diskon.
     const uangMuka80 = hargaJual * 0.8;
@@ -228,7 +240,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
   }
 
   if (term === "TUNAI_BERTAHAP") {
-    const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonCustom);
+    const diskonPpnDtp = hitungDiskonPpnDtpUntukUnit(hargaJual - diskonCustom, unit);
     const hargaSetelahDiskon = hargaJual - diskonCustom - diskonPpnDtp;
     const tenorBulan = Math.max(1, Math.round(input.tenorBertahapBulan ?? 6));
     const sisaPelunasan = hargaSetelahDiskon - utj;
@@ -281,7 +293,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
   const tenorTahun = input.tenorTahun ?? 20;
   const dpPercent = Math.min(Math.max(input.dpPercent ?? 0, 0), 0.9);
   const kprMode: KprMode = input.kprMode ?? "FIX";
-  const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonCustom);
+  const diskonPpnDtp = hitungDiskonPpnDtpUntukUnit(hargaJual - diskonCustom, unit);
   const hargaSetelahDiskon = hargaJual - diskonCustom - diskonPpnDtp;
   const uangMuka = hargaSetelahDiskon * dpPercent;
   const pokokKpr = hargaSetelahDiskon - utj - uangMuka;
