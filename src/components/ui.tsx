@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { FocusEvent, ReactNode } from "react";
 
 export function Field({
   label,
@@ -29,7 +29,15 @@ const inputBase =
   "w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-foreground placeholder:text-foreground-muted/70 outline-none transition focus:border-foreground-muted focus:ring-4 focus:ring-foreground/5";
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`${inputBase} ${props.className ?? ""}`} />;
+  // Field angka: pilih semua isinya begitu difokuskan, supaya ketik langsung
+  // menimpa nilai default (mis. "0") tanpa harus hapus manual dulu.
+  function handleFocus(e: FocusEvent<HTMLInputElement>) {
+    if (props.type === "number") e.target.select();
+    props.onFocus?.(e);
+  }
+  return (
+    <input {...props} onFocus={handleFocus} className={`${inputBase} ${props.className ?? ""}`} />
+  );
 }
 
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
