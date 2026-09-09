@@ -103,24 +103,14 @@ export interface CalculationResult {
 
 /** Diskon PPN DTP (insentif pemerintah) — rumus resmi, hasil akhir saja yang
  * ditampilkan ke dashboard/invoice, bukan langkah rumusnya:
- * (((Harga Jual − diskon lain) + 4.000.000) / 1,16) × 11% − 15.000.000
+ * ((Harga Jual − diskon lain) / 1,16) × 11% − 15.000.000
+ * (Catatan: versi awal rumus ini sempat menambahkan +Rp4.000.000 sebelum dibagi
+ * 1,16 — ternyata itu bukan bagian dari rumus resminya dan sudah dihapus.)
  * Hasil akhir dibulatkan ke bawah ke kelipatan Rp1.000.000 terdekat (mis.
- * Rp106.995.690 → Rp106.000.000), sesuai konvensi pembulatan insentif ini. */
+ * Rp60.672.413 → Rp60.000.000), sesuai konvensi pembulatan insentif ini. */
 function hitungDiskonPpnDtp(hargaSetelahDiskonLain: number): number {
-  const nilai = ((hargaSetelahDiskonLain + 4_000_000) / 1.16) * 0.11 - 15_000_000;
+  const nilai = (hargaSetelahDiskonLain / 1.16) * 0.11 - 15_000_000;
   return Math.max(0, Math.floor(nilai / 1_000_000) * 1_000_000);
-}
-
-/** Override manual khusus tipe BIANCA Garden (permintaan user) — dikurangi Rp1 juta
- * lagi dari hasil pembulatan normal, berlaku di semua term. Unit lain TIDAK
- * terpengaruh sama sekali, walau kondisi pembulatannya mirip — ini bukan aturan
- * umum, murni override manual untuk tipe unit ini. */
-function hitungDiskonPpnDtpUntukUnit(hargaSetelahDiskonLain: number, unit: PropertyUnit): number {
-  const diskon = hitungDiskonPpnDtp(hargaSetelahDiskonLain);
-  if (unit.tipe.toUpperCase() === "BIANCA GARDEN") {
-    return Math.max(0, diskon - 1_000_000);
-  }
-  return diskon;
 }
 
 /** Susun tier eksplisit (dalam bulan) — TIDAK auto-mengisi sisa tenor ke tier
@@ -206,7 +196,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
 
   if (term === "HARD_CASH") {
     const diskonTunaiKeras = hargaJual * 0.05;
-    const diskonPpnDtp = hitungDiskonPpnDtpUntukUnit(hargaJual - diskonTunaiKeras - diskonCustom, unit);
+    const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonTunaiKeras - diskonCustom);
     const hargaSetelahDiskon = hargaJual - diskonTunaiKeras - diskonCustom - diskonPpnDtp;
     // Uang Muka 80% dihitung dari Harga Jual (harga list), BUKAN dari harga setelah diskon.
     const uangMuka80 = hargaJual * 0.8;
@@ -240,7 +230,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
   }
 
   if (term === "TUNAI_BERTAHAP") {
-    const diskonPpnDtp = hitungDiskonPpnDtpUntukUnit(hargaJual - diskonCustom, unit);
+    const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonCustom);
     const hargaSetelahDiskon = hargaJual - diskonCustom - diskonPpnDtp;
     const tenorBulan = Math.max(1, Math.round(input.tenorBertahapBulan ?? 6));
     const sisaPelunasan = hargaSetelahDiskon - utj;
@@ -293,7 +283,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
   const tenorTahun = input.tenorTahun ?? 20;
   const dpPercent = Math.min(Math.max(input.dpPercent ?? 0, 0), 0.9);
   const kprMode: KprMode = input.kprMode ?? "FIX";
-  const diskonPpnDtp = hitungDiskonPpnDtpUntukUnit(hargaJual - diskonCustom, unit);
+  const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonCustom);
   const hargaSetelahDiskon = hargaJual - diskonCustom - diskonPpnDtp;
   const uangMuka = hargaSetelahDiskon * dpPercent;
   const pokokKpr = hargaSetelahDiskon - utj - uangMuka;
