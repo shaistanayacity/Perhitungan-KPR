@@ -113,6 +113,19 @@ function hitungDiskonPpnDtp(hargaSetelahDiskonLain: number): number {
   return Math.max(0, Math.floor(nilai / 1_000_000) * 1_000_000);
 }
 
+/** Harga setelah diskon (Diskon Khusus + PPN DTP) untuk skema KPR — basis yang
+ * dipakai `calculateSimulation` untuk menghitung Uang Muka (`uangMuka = ini ×
+ * dpPercent`), BUKAN Harga Jual mentah. Diekspos supaya form (field DP Nominal)
+ * bisa mengonversi nominal↔persen pakai basis yang SAMA dengan hasil akhir —
+ * kalau dikonversi dari Harga Jual, nominal yang diketik user tidak akan pas
+ * dengan Uang Muka yang muncul di invoice (karena sudah beda basis). */
+export function hitungHargaSetelahDiskonKpr(unit: PropertyUnit, diskonCustom: number): number {
+  const hargaJual = unit.hargaAsli;
+  const dc = Math.max(0, diskonCustom);
+  const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - dc);
+  return hargaJual - dc - diskonPpnDtp;
+}
+
 /** Susun tier eksplisit (dalam bulan) — TIDAK auto-mengisi sisa tenor ke tier
  * terakhir seperti versi lama. Kalau total durasi tier < tenor, sisanya jadi
  * floating tail (dikembalikan terpisah oleh pemanggil). */

@@ -4,7 +4,7 @@ import { Dispatch } from "react";
 import { FormState, FormAction } from "@/lib/formReducer";
 import { ValidationErrors } from "@/types/buyer";
 import { getUnitById } from "@/lib/pricelist";
-import { TermOfPayment, KprMode, KPR_MODE_LABELS } from "@/lib/kpr-calculator";
+import { TermOfPayment, KprMode, KPR_MODE_LABELS, hitungHargaSetelahDiskonKpr } from "@/lib/kpr-calculator";
 import { Field, RadioCard, TextInput } from "@/components/ui";
 import { formatRupiah } from "@/lib/format";
 import TierEditor from "./TierEditor";
@@ -20,6 +20,10 @@ export default function TermTab({
 }) {
   const unit = state.unitId ? getUnitById(state.unitId) : undefined;
   const isKpr = state.term === "KPR";
+  // Basis Uang Muka yang SEBENARNYA dipakai calculateSimulation (harga setelah
+  // Diskon Khusus + PPN DTP) — dipakai untuk konversi nominal↔persen di field
+  // DP Nominal, supaya nominal yang diketik user pas dengan Uang Muka di invoice.
+  const hargaSetelahDiskonKpr = unit ? hitungHargaSetelahDiskonKpr(unit, state.diskonCustom) : 0;
 
   const terms: { value: TermOfPayment; title: string; subtitle: string }[] = [
     {
@@ -151,21 +155,22 @@ export default function TermTab({
               id="dpNominal"
               type="number"
               min={0}
-              max={unit ? unit.hargaAsli * 0.9 : undefined}
+              max={unit ? hargaSetelahDiskonKpr * 0.9 : undefined}
               step={1_000_000}
               disabled={!unit}
-              value={unit ? Math.round(unit.hargaAsli * state.dpPercent) : 0}
+              value={unit ? Math.round(hargaSetelahDiskonKpr * state.dpPercent) : 0}
               onChange={(e) => {
                 if (!unit) return;
                 const nominal = Math.max(0, Number(e.target.value));
-                const percent = unit.hargaAsli > 0 ? nominal / unit.hargaAsli : 0;
+                const percent = hargaSetelahDiskonKpr > 0 ? nominal / hargaSetelahDiskonKpr : 0;
                 dispatch({ type: "SET_FIELD", field: "dpPercent", value: Math.min(percent, 0.9) });
               }}
               className="mb-2 disabled:opacity-40"
             />
             {unit && (
               <p className="mb-2 text-xs text-foreground-muted">
-                ≈ {formatRupiah(unit.hargaAsli * state.dpPercent)} dari Harga Jual {formatRupiah(unit.hargaAsli)}
+                ≈ {formatRupiah(hargaSetelahDiskonKpr * state.dpPercent)} dari Harga Setelah Diskon{" "}
+                {formatRupiah(hargaSetelahDiskonKpr)}
               </p>
             )}
             <input
