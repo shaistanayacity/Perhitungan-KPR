@@ -177,7 +177,10 @@ export async function generateInvoicePdf(
   if (result.cicilanBulanan !== null)
     termRows.push([`Cicilan (${result.tenorBertahapBulan} bln)`, formatRupiah(result.cicilanBulanan)]);
   if (state.term !== "TUNAI_BERTAHAP")
-    termRows.push(["Sisa Pelunasan", formatRupiah(result.sisaPelunasan)]);
+    termRows.push([
+      state.term === "KPR" ? "Harga KPR" : "Sisa Pelunasan",
+      formatRupiah(result.sisaPelunasan),
+    ]);
 
   const rowB1 = card("3. Breakdown Harga", leftX, colWidth, y, breakdownRows);
   const rowB2 = card("4. Term of Payment", rightX, colWidth, y, termRows);

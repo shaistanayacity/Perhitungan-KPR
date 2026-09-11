@@ -119,7 +119,11 @@ export default function ResultsPanel({
             />
           )}
           {state.term !== "TUNAI_BERTAHAP" && (
-            <StatRow label="Sisa Pelunasan" value={formatRupiah(result.sisaPelunasan)} emphasis />
+            <StatRow
+              label={state.term === "KPR" ? "Harga KPR" : "Sisa Pelunasan"}
+              value={formatRupiah(result.sisaPelunasan)}
+              emphasis
+            />
           )}
         </SectionCard>
 
