@@ -61,7 +61,7 @@ export async function generateInvoicePdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...GOLD);
-  doc.text("INVOICE SIMULASI KPR", margin + (logo ? 13 : 0), 17.2);
+  doc.text("INVOICE SIMULASI", margin + (logo ? 13 : 0), 17.2);
 
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);
