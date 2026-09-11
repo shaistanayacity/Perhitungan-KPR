@@ -82,11 +82,10 @@ export default function TierEditor({
                   const maxTahun = Math.max(mulai, tenorTahun);
                   const opsiTahun = Array.from({ length: maxTahun - mulai + 1 }, (_, k) => mulai + k);
                   return (
-                    <div className="flex items-center gap-1.5">
-                      <span className="shrink-0 rounded-xl border border-border bg-surface-muted px-3 py-2.5 text-sm text-foreground-muted">
-                        Thn {mulai}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-foreground-muted">
+                        Mulai Thn {mulai} — s/d
                       </span>
-                      <span className="shrink-0 text-xs text-foreground-muted">s/d</span>
                       <Select
                         aria-label={`Periode ${i + 1} berakhir tahun`}
                         value={selesai}
