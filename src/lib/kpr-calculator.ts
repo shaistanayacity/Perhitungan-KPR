@@ -329,7 +329,6 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
       nominal: 0,
     });
   }
-  cashFlow.push({ hari: "Saat AJB Notaris", keterangan: "Akad Kredit & Serah Terima", nominal: 0 });
 
   return {
     hargaJual,
