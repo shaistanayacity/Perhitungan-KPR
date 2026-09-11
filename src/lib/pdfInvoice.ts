@@ -5,10 +5,10 @@ import { PropertyUnit, TERMS_AND_CONDITIONS, BANK_ACCOUNT, COMPANY_INFO } from "
 import { CalculationResult, getTermLabel, KPR_MODE_LABELS } from "./kpr-calculator";
 import { formatRupiah, formatPercent, formatDateID, slugifyFileSegment } from "./format";
 
-const NAVY: [number, number, number] = [15, 30, 61];
+const NAVY: [number, number, number] = [20, 41, 82]; // biru navy, dicerahkan dikit dari [15,30,61]
 const GOLD: [number, number, number] = [183, 145, 63];
-const MUTED: [number, number, number] = [91, 101, 119];
-const INK: [number, number, number] = [22, 35, 61];
+const MUTED: [number, number, number] = [105, 116, 137]; // dicerahkan dikit dari [91,101,119]
+const INK: [number, number, number] = [30, 47, 82]; // dicerahkan dikit dari [22,35,61]
 const BORDER: [number, number, number] = [222, 222, 217];
 const ZEBRA: [number, number, number] = [247, 245, 240];
 
