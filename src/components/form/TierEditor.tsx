@@ -5,7 +5,7 @@ import { FormState, FormAction } from "@/lib/formReducer";
 import { previewTierYearRanges, previewFloatingTailYears } from "@/lib/kpr-calculator";
 import { BANK_PRESETS } from "@/lib/bankPresets";
 import { formatPercent } from "@/lib/format";
-import { TextInput, Button } from "@/components/ui";
+import { TextInput, Select, Button } from "@/components/ui";
 
 export default function TierEditor({
   state,
@@ -18,6 +18,13 @@ export default function TierEditor({
   const isBerjenjang = kprMode === "BERJENJANG";
   const ranges = previewTierYearRanges(tiers, tenorTahun);
   const floatingTail = previewFloatingTailYears(tiers, tenorTahun);
+
+  // Tahun mulai tiap periode = kelanjutan otomatis dari periode sebelumnya —
+  // cuma "sampai tahun" yang user pilih, biar gak perlu ngitung durasi manual.
+  const tahunMulaiTiap = tiers.reduce<number[]>((acc, t, i) => {
+    const mulai = i === 0 ? 1 : acc[i - 1] + Math.max(tiers[i - 1].durasiTahun, 1);
+    return [...acc, mulai];
+  }, []);
 
   return (
     <div className="flex flex-col gap-4">
@@ -68,21 +75,39 @@ export default function TierEditor({
             </div>
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="mb-1 block text-xs text-foreground-muted">Durasi (tahun)</label>
-                <TextInput
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={tier.durasiTahun}
-                  onChange={(e) =>
-                    dispatch({
-                      type: "UPDATE_TIER",
-                      index: i,
-                      field: "durasiTahun",
-                      value: Number(e.target.value),
-                    })
-                  }
-                />
+                <label className="mb-1 block text-xs text-foreground-muted">Rentang Tahun</label>
+                {(() => {
+                  const mulai = tahunMulaiTiap[i];
+                  const selesai = Math.min(mulai + tier.durasiTahun - 1, tenorTahun);
+                  const maxTahun = Math.max(mulai, tenorTahun);
+                  const opsiTahun = Array.from({ length: maxTahun - mulai + 1 }, (_, k) => mulai + k);
+                  return (
+                    <div className="flex items-center gap-1.5">
+                      <span className="shrink-0 rounded-xl border border-border bg-surface-muted px-3 py-2.5 text-sm text-foreground-muted">
+                        Thn {mulai}
+                      </span>
+                      <span className="shrink-0 text-xs text-foreground-muted">s/d</span>
+                      <Select
+                        aria-label={`Periode ${i + 1} berakhir tahun`}
+                        value={selesai}
+                        onChange={(e) =>
+                          dispatch({
+                            type: "UPDATE_TIER",
+                            index: i,
+                            field: "durasiTahun",
+                            value: Number(e.target.value) - mulai + 1,
+                          })
+                        }
+                      >
+                        {opsiTahun.map((y) => (
+                          <option key={y} value={y}>
+                            Thn {y}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  );
+                })()}
               </div>
               <div>
                 <label className="mb-1 block text-xs text-foreground-muted">Suku Bunga (%)</label>

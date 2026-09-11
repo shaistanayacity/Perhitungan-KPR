@@ -131,9 +131,7 @@ export default function TermTab({
               max={30}
               step={1}
               value={state.tenorTahun}
-              onChange={(e) =>
-                dispatch({ type: "SET_FIELD", field: "tenorTahun", value: Number(e.target.value) })
-              }
+              onChange={(e) => dispatch({ type: "SET_TENOR_TAHUN", value: Number(e.target.value) })}
               className="w-full"
             />
             <div className="flex justify-between text-xs text-foreground-muted">

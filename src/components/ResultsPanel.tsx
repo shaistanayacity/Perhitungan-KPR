@@ -118,7 +118,9 @@ export default function ResultsPanel({
               value={formatRupiah(result.cicilanBulanan)}
             />
           )}
-          <StatRow label="Sisa Pelunasan" value={formatRupiah(result.sisaPelunasan)} emphasis />
+          {state.term !== "TUNAI_BERTAHAP" && (
+            <StatRow label="Sisa Pelunasan" value={formatRupiah(result.sisaPelunasan)} emphasis />
+          )}
         </SectionCard>
 
         {isKpr && (
