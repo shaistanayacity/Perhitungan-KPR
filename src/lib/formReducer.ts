@@ -27,6 +27,23 @@ function defaultTiers(rate: number, tenorTahun: number): KprTierInput[] {
   return [{ durasiTahun: Math.min(2, tenorTahun), sukuBunga: rate }];
 }
 
+/** Susun ulang tiers supaya total durasinya tidak melebihi tenorTahun baru —
+ * dipakai saat Tenor Total KPR diperkecil lewat slider, biar periode yang
+ * kelebihan otomatis terpangkas/terhapus tanpa perlu diedit manual (lihat
+ * TierEditor: "Sampai Tahun" per periode selalu dibatasi ke Tenor Total). */
+function clampTiersToTenor(tiers: KprTierInput[], tenorTahun: number): KprTierInput[] {
+  const clamped: KprTierInput[] = [];
+  let used = 0;
+  for (const t of tiers) {
+    const sisa = tenorTahun - used;
+    if (sisa <= 0) break;
+    const durasi = Math.min(t.durasiTahun, sisa);
+    clamped.push({ ...t, durasiTahun: durasi });
+    used += durasi;
+  }
+  return clamped.length > 0 ? clamped : defaultTiers(tiers[0]?.sukuBunga ?? DEFAULT_SUKU_BUNGA, tenorTahun);
+}
+
 export const initialFormState: FormState = {
   nama: "",
   pekerjaan: "",
@@ -53,6 +70,7 @@ export type FormAction =
   | { type: "SET_TAB"; tab: TabId }
   | { type: "APPLY_DEFAULT_RATE"; rate: number }
   | { type: "SET_KPR_MODE"; mode: KprMode }
+  | { type: "SET_TENOR_TAHUN"; value: number }
   | { type: "ADD_TIER" }
   | { type: "REMOVE_TIER"; index: number }
   | { type: "UPDATE_TIER"; index: number; field: keyof KprTierInput; value: number }
@@ -87,8 +105,13 @@ export function formReducer(state: FormState, action: FormAction): FormState {
         // KPR Fix cuma 1 periode fixed lalu floating — pangkas ke tier pertama saja.
         tiers: action.mode === "FIX" ? state.tiers.slice(0, 1) : state.tiers,
       };
+    case "SET_TENOR_TAHUN": {
+      return { ...state, tenorTahun: action.value, tiers: clampTiersToTenor(state.tiers, action.value) };
+    }
     case "ADD_TIER": {
       if (state.kprMode === "FIX" || state.tiers.length >= 6) return state; // batas wajar biar UI tidak meluber
+      const used = state.tiers.reduce((sum, t) => sum + t.durasiTahun, 0);
+      if (used >= state.tenorTahun) return state; // sudah tidak ada sisa tahun buat periode baru
       const last = state.tiers[state.tiers.length - 1];
       return { ...state, tiers: [...state.tiers, { durasiTahun: 1, sukuBunga: last?.sukuBunga ?? 0.03 }] };
     }
