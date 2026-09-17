@@ -32,8 +32,14 @@ export const MONTANA_UNITS: PropertyUnit[] = [
 export const SIERRA_UNITS: PropertyUnit[] = [
   { id: "sierra-bianca-garden-e3", cluster: "SIERRA", tipe: "BIANCA Garden", lb: 55, lt: 72, blok: "E3", noUnit: "02-06", hargaAsli: 840_000_000, hargaKpr: 776_000_000 },
   { id: "sierra-bianca-deluxe-e3", cluster: "SIERRA", tipe: "BIANCA Deluxe", lb: 65, lt: 72, blok: "E3", noUnit: "07-12", hargaAsli: 880_000_000, hargaKpr: 812_000_000 },
+  // ARNICA Garden & ARNICA Pool sama-sama ada di blok E1 dan E8 — ARNICA Pool
+  // adalah ARNICA Garden + penambahan private pool Rp170.000.000 (lihat
+  // TERMS_AND_CONDITIONS.SIERRA), jadi hargaAsli & hargaKpr Pool = Garden + 170jt
+  // per bloknya masing-masing (bukan harga baru yang berdiri sendiri).
   { id: "sierra-arnica-garden-e1", cluster: "SIERRA", tipe: "ARNICA Garden", lb: 70, lt: 90, blok: "E1", noUnit: "01-05", hargaAsli: 990_000_000, hargaKpr: 912_000_000 },
-  { id: "sierra-arnica-pool-e8", cluster: "SIERRA", tipe: "ARNICA Pool", lb: 70, lt: 90, blok: "E8", noUnit: "03-09", hargaAsli: 1_010_000_000, hargaKpr: 922_425_000 },
+  { id: "sierra-arnica-garden-e8", cluster: "SIERRA", tipe: "ARNICA Garden", lb: 70, lt: 90, blok: "E8", noUnit: "03-09", hargaAsli: 1_010_000_000, hargaKpr: 922_425_000 },
+  { id: "sierra-arnica-pool-e1", cluster: "SIERRA", tipe: "ARNICA Pool", lb: 70, lt: 90, blok: "E1", noUnit: "01-05", hargaAsli: 1_160_000_000, hargaKpr: 1_082_000_000 },
+  { id: "sierra-arnica-pool-e8", cluster: "SIERRA", tipe: "ARNICA Pool", lb: 70, lt: 90, blok: "E8", noUnit: "03-09", hargaAsli: 1_180_000_000, hargaKpr: 1_092_425_000 },
   { id: "sierra-bianca-deluxe-hook-e3-01", cluster: "SIERRA", tipe: "BIANCA Deluxe Hook", lb: 87, lt: 95.7, blok: "E3", noUnit: "01", hargaAsli: 1_150_000_000, hargaKpr: 1_056_000_000, specialUnit: true },
   { id: "sierra-arnica-garden-hook-e8-10", cluster: "SIERRA", tipe: "ARNICA Garden Hook", lb: 82, lt: 105.3, blok: "E8", noUnit: "10", hargaAsli: 1_155_000_000, hargaKpr: 1_061_000_000, specialUnit: true },
   { id: "sierra-arnica-pool-hook-e1-06", cluster: "SIERRA", tipe: "ARNICA Pool Hook", lb: 70, lt: 160, blok: "E1", noUnit: "06", hargaAsli: 1_350_000_000, hargaKpr: 1_237_000_000, specialUnit: true },
