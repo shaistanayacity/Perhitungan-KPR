@@ -16,6 +16,9 @@ import { formatRupiah } from "@/lib/format";
 export default function Home() {
   const [state, dispatch] = useReducer(formReducer, initialFormState);
   const [result, setResult] = useState<CalculationResult | null>(null);
+  // Snapshot input kalkulasi persis saat `result` di atas dihasilkan — dipakai
+  // untuk mendeteksi kalau `result` sudah basi (lihat `isResultStale` di bawah).
+  const [resultInputsSnapshot, setResultInputsSnapshot] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
@@ -25,6 +28,27 @@ export default function Home() {
   }, []);
 
   const unit = state.unitId ? getUnitById(state.unitId) : undefined;
+
+  // `result` dibekukan dari saat "Hitung Simulasi" terakhir diklik, sedangkan
+  // `unit` di atas reaktif ke state form saat ini. Kalau input yang memengaruhi
+  // kalkulasi berubah (mis. user balik ke tab Properti lalu ganti unit) tanpa
+  // menghitung ulang, ResultsPanel bisa nampilin campuran Section 2 (unit baru)
+  // dengan Section 3 dst (angka unit lama) — invoice pun bisa ikut salah kalau
+  // di-download saat kondisi ini. `isResultStale` mendeteksi itu murni lewat
+  // perbandingan saat render (tanpa ref/effect) — begitu ketahuan basi,
+  // `effectiveResult` di bawah jadi null sampai user hitung ulang.
+  const calcInputsSnapshot = JSON.stringify([
+    state.unitId,
+    state.term,
+    state.diskonCustom,
+    state.tenorBertahapBulan,
+    state.tenorTahun,
+    state.dpPercent,
+    state.kprMode,
+    state.tiers,
+  ]);
+  const isResultStale = resultInputsSnapshot !== null && resultInputsSnapshot !== calcInputsSnapshot;
+  const effectiveResult = isResultStale ? null : result;
 
   const errors = useMemo(
     () =>
@@ -54,6 +78,7 @@ export default function Home() {
       tiers: state.tiers,
     });
     setResult(calc);
+    setResultInputsSnapshot(calcInputsSnapshot);
     void logSimulation(
       { nama: state.nama, pekerjaan: state.pekerjaan, usia: state.usia ?? 0, gaji: state.gaji },
       unit,
@@ -65,14 +90,15 @@ export default function Home() {
   function handleReset() {
     dispatch({ type: "RESET" });
     setResult(null);
+    setResultInputsSnapshot(null);
     setSubmitted(false);
   }
 
   async function handleDownloadPdf() {
-    if (!unit || !result) return;
+    if (!unit || !effectiveResult) return;
     setIsGeneratingPdf(true);
     try {
-      const doc = await generateInvoicePdf(state, unit, result);
+      const doc = await generateInvoicePdf(state, unit, effectiveResult);
       doc.save(invoiceFileName(state.nama, unit.tipe));
     } finally {
       setIsGeneratingPdf(false);
@@ -80,11 +106,11 @@ export default function Home() {
   }
 
   async function handleShare() {
-    if (!unit || !result) return;
+    if (!unit || !effectiveResult) return;
     const text = `Simulasi KPR ${unit.cluster} - ${unit.tipe}\nHarga Jual: ${formatRupiah(
       unit.hargaAsli
     )}\nAngsuran/Cicilan: ${formatRupiah(
-      result.angsuranAwalKpr ?? result.cicilanBulanan ?? 0
+      effectiveResult.angsuranAwalKpr ?? effectiveResult.cicilanBulanan ?? 0
     )}\nDihitung via KPR Calculator Shaistanaya City`;
     try {
       if (navigator.share) {
@@ -129,7 +155,7 @@ export default function Home() {
           <ResultsPanel
             state={state}
             unit={unit}
-            result={result}
+            result={effectiveResult}
             onDownloadPdf={handleDownloadPdf}
             onShare={handleShare}
             isGeneratingPdf={isGeneratingPdf}
