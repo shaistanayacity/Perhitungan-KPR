@@ -181,18 +181,30 @@ export default function ResultsPanel({
                   </tr>
                 </thead>
                 <tbody>
-                  {result.tierBreakdown?.map((t) => (
-                    <tr key={t.tierKe} className="border-t border-border">
+                  {result.tierDisplayRows?.map((row, i) => (
+                    <tr key={`${row.tierKe}-${i}`} className="border-t border-border">
                       <td className="py-1.5 font-medium text-foreground">
-                        {t.tahunMulai}
-                        {t.tahunSelesai > t.tahunMulai ? `–${t.tahunSelesai}` : ""}
-                      </td>
-                      <td className="py-1.5 text-foreground-muted">{formatPercent(t.sukuBunga)}</td>
-                      <td className="py-1.5 text-right font-semibold tabular-nums text-foreground">
-                        {t.tierKe === 1 && result.angsuranAwalKprSetelahSubsidi !== null ? (
-                          <HargaSubsidi asli={t.angsuranBulanan} setelahSubsidi={result.angsuranAwalKprSetelahSubsidi} />
+                        {row.labelBulan ? (
+                          <>
+                            Bulan {row.bulanMulai}
+                            {row.bulanSelesai > row.bulanMulai ? `–${row.bulanSelesai}` : ""}
+                          </>
                         ) : (
-                          formatRupiah(t.angsuranBulanan)
+                          <>
+                            {row.tahunMulai}
+                            {row.tahunSelesai > row.tahunMulai ? `–${row.tahunSelesai}` : ""}
+                          </>
+                        )}
+                      </td>
+                      <td className="py-1.5 text-foreground-muted">{formatPercent(row.sukuBunga)}</td>
+                      <td className="py-1.5 text-right font-semibold tabular-nums text-foreground">
+                        {row.disubsidi && result.subsidiAngsuranNominal > 0 ? (
+                          <HargaSubsidi
+                            asli={row.angsuranBulanan}
+                            setelahSubsidi={Math.max(0, row.angsuranBulanan - result.subsidiAngsuranNominal)}
+                          />
+                        ) : (
+                          formatRupiah(row.angsuranBulanan)
                         )}
                       </td>
                     </tr>
