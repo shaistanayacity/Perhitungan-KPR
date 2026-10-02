@@ -68,7 +68,7 @@ export default function ResultsPanel({
           <div>
             <div className="flex flex-wrap items-center gap-1.5">
               <Pill tone="gold">{getTermLabel(state.term)}</Pill>
-              {result.promoSubsidiAngsuranAktif && <Pill tone="success">Promo OctoBoo!</Pill>}
+              {result.promoSubsidiAngsuranAktif && <Pill tone="success">Promo OctoBOO!</Pill>}
             </div>
             <p className="font-brand mt-2.5 text-2xl text-foreground">
               {unit.tipe} · {unit.cluster}

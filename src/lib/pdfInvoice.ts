@@ -318,7 +318,7 @@ export async function generateInvoicePdf(
     ]);
   if (result.promoSubsidiAngsuranAktif)
     termRows.push([
-      "Promo OctoBoo!",
+      "Promo OctoBOO!",
       `Subsidi Angsuran ${formatRupiah(result.subsidiAngsuranNominal)} Selama ${result.subsidiAngsuranBulan} Bulan`,
     ]);
 
