@@ -2,9 +2,20 @@
 
 import { FormState } from "@/lib/formReducer";
 import { PropertyUnit } from "@/lib/pricelist";
-import { CalculationResult, getTermLabel, KPR_MODE_LABELS } from "@/lib/kpr-calculator";
+import { CalculationResult, getTermLabel, getDiskonHargaLabel, KPR_MODE_LABELS } from "@/lib/kpr-calculator";
 import { formatRupiah, formatPercent } from "@/lib/format";
 import { SectionCard, StatRow, Pill, Button } from "@/components/ui";
+
+/** Angka asli dicoret + angka setelah subsidi di sebelahnya — dipakai di tiap
+ * tempat yang menampilkan angsuran/cicilan selama promo OctoBoo! aktif. */
+function HargaSubsidi({ asli, setelahSubsidi }: { asli: number; setelahSubsidi: number }) {
+  return (
+    <span className="inline-flex items-baseline gap-1.5">
+      <span className="text-foreground-muted/70 line-through">{formatRupiah(asli)}</span>
+      <span>{formatRupiah(setelahSubsidi)}</span>
+    </span>
+  );
+}
 
 export default function ResultsPanel({
   state,
@@ -43,6 +54,9 @@ export default function ResultsPanel({
   }
 
   const isKpr = result.pokokKpr !== null;
+  const angsuranHeadline = result.angsuranAwalKpr ?? result.cicilanBulanan;
+  const angsuranHeadlineSetelahSubsidi =
+    result.angsuranAwalKprSetelahSubsidi ?? result.cicilanBulananSetelahSubsidi;
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -52,7 +66,10 @@ export default function ResultsPanel({
       >
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-6">
           <div>
-            <Pill tone="gold">{getTermLabel(state.term)}</Pill>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Pill tone="gold">{getTermLabel(state.term)}</Pill>
+              {result.promoSubsidiAngsuranAktif && <Pill tone="success">Promo OctoBoo!</Pill>}
+            </div>
             <p className="font-brand mt-2.5 text-2xl text-foreground">
               {unit.tipe} · {unit.cluster}
             </p>
@@ -63,12 +80,20 @@ export default function ResultsPanel({
               {isKpr ? "Estimasi Angsuran Awal" : "Estimasi Angsuran / Cicilan Bulanan"}
             </p>
             <p className="font-brand text-3xl text-foreground">
-              {result.angsuranAwalKpr !== null
-                ? formatRupiah(result.angsuranAwalKpr)
-                : result.cicilanBulanan !== null
-                  ? formatRupiah(result.cicilanBulanan)
-                  : "—"}
+              {angsuranHeadlineSetelahSubsidi !== null && angsuranHeadline !== null ? (
+                <HargaSubsidi asli={angsuranHeadline} setelahSubsidi={angsuranHeadlineSetelahSubsidi} />
+              ) : angsuranHeadline !== null ? (
+                formatRupiah(angsuranHeadline)
+              ) : (
+                "—"
+              )}
             </p>
+            {result.promoSubsidiAngsuranAktif && (
+              <p className="text-[11px] font-medium text-success">
+                Subsidi Angsuran {formatRupiah(result.subsidiAngsuranNominal)} selama {result.subsidiAngsuranBulan}{" "}
+                bulan pertama
+              </p>
+            )}
             <p className="text-[11px] text-foreground-muted/70">*Estimasi, bukan angka final dari bank</p>
           </div>
         </div>
@@ -103,7 +128,7 @@ export default function ResultsPanel({
             <StatRow label="Diskon Khusus" value={`− ${formatRupiah(result.diskonCustom)}`} negative />
           )}
           {result.diskonPpnDtp > 0 && (
-            <StatRow label="Diskon PPN DTP" value={`− ${formatRupiah(result.diskonPpnDtp)}`} negative />
+            <StatRow label={getDiskonHargaLabel()} value={`− ${formatRupiah(result.diskonPpnDtp)}`} negative />
           )}
           <StatRow label="Harga Transaksi" value={formatRupiah(result.hargaSetelahDiskon)} emphasis />
         </SectionCard>
@@ -115,8 +140,20 @@ export default function ResultsPanel({
           {result.cicilanBulanan !== null && (
             <StatRow
               label={`Cicilan Bulanan (${result.tenorBertahapBulan} bulan)`}
-              value={formatRupiah(result.cicilanBulanan)}
+              value={
+                result.cicilanBulananSetelahSubsidi !== null ? (
+                  <HargaSubsidi asli={result.cicilanBulanan} setelahSubsidi={result.cicilanBulananSetelahSubsidi} />
+                ) : (
+                  formatRupiah(result.cicilanBulanan)
+                )
+              }
             />
+          )}
+          {result.promoSubsidiAngsuranAktif && (
+            <p className="text-xs font-medium text-success">
+              🎉 Subsidi Angsuran {formatRupiah(result.subsidiAngsuranNominal)} Selama {result.subsidiAngsuranBulan}{" "}
+              Bulan
+            </p>
           )}
           {state.term !== "TUNAI_BERTAHAP" && (
             <StatRow
@@ -152,7 +189,11 @@ export default function ResultsPanel({
                       </td>
                       <td className="py-1.5 text-foreground-muted">{formatPercent(t.sukuBunga)}</td>
                       <td className="py-1.5 text-right font-semibold tabular-nums text-foreground">
-                        {formatRupiah(t.angsuranBulanan)}
+                        {t.tierKe === 1 && result.angsuranAwalKprSetelahSubsidi !== null ? (
+                          <HargaSubsidi asli={t.angsuranBulanan} setelahSubsidi={result.angsuranAwalKprSetelahSubsidi} />
+                        ) : (
+                          formatRupiah(t.angsuranBulanan)
+                        )}
                       </td>
                     </tr>
                   ))}
