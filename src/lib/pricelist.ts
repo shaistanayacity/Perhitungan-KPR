@@ -33,8 +33,8 @@ export const MONTANA_UNITS: PropertyUnit[] = [
   { id: "montana-gwen-f12", cluster: "MONTANA", tipe: "GWEN", lb: 38, lt: 72, blok: "F12", noUnit: "02,05,07", hargaAsli: 660_000_000, hargaKpr: 613_000_000, promoOctoBooDiskonHarga: 35_000_000 },
   { id: "montana-newgwen-f3", cluster: "MONTANA", tipe: "NEW GWEN", lb: 42, lt: 72, blok: "F3", noUnit: "01-08", hargaAsli: 680_000_000, hargaKpr: 631_000_000, promoOctoBooDiskonHarga: 35_000_000 },
   { id: "montana-newgwen-f5", cluster: "MONTANA", tipe: "NEW GWEN", lb: 42, lt: 72, blok: "F5", noUnit: "02-07", hargaAsli: 680_000_000, hargaKpr: 631_000_000, promoOctoBooDiskonHarga: 35_000_000 },
-  { id: "montana-darlene-f1", cluster: "MONTANA", tipe: "DARLENE", lb: 45, lt: 91, blok: "F1", noUnit: "05", hargaAsli: 795_000_000, hargaKpr: 735_000_000, promoOctoBooDiskonHarga: 45_000_000 },
-  { id: "montana-gwenhook-f15", cluster: "MONTANA", tipe: "GWEN HOOK", lb: 38, lt: 106, blok: "F15", noUnit: "08", hargaAsli: 800_000_000, hargaKpr: 739_000_000, specialUnit: true, roundPpnDtp: true, promoOctoBooDiskonHarga: 45_000_000 },
+  { id: "montana-darlene-f1", cluster: "MONTANA", tipe: "DARLENE", lb: 45, lt: 91, blok: "F2-2", noUnit: "05", hargaAsli: 795_000_000, hargaKpr: 735_000_000, promoOctoBooDiskonHarga: 45_000_000 },
+  { id: "montana-gwenhook-f15", cluster: "MONTANA", tipe: "GWEN HOOK", lb: 38, lt: 106, blok: "F15-8", noUnit: "08", hargaAsli: 800_000_000, hargaKpr: 739_000_000, specialUnit: true, roundPpnDtp: true, promoOctoBooDiskonHarga: 45_000_000 },
   { id: "montana-gwenhook-f9-01", cluster: "MONTANA", tipe: "GWEN HOOK", lb: 38, lt: 106, blok: "F9-01", noUnit: "01", hargaAsli: 815_000_000, hargaKpr: 753_000_000, specialUnit: true, promoOctoBooDiskonHarga: 50_000_000 },
   { id: "montana-newgwenhook-f5-08", cluster: "MONTANA", tipe: "NEW GWEN HOOK", lb: 45, lt: 112, blok: "F5-8", noUnit: "08", hargaAsli: 885_000_000, hargaKpr: 816_000_000, specialUnit: true, roundPpnDtp: true, promoOctoBooDiskonHarga: 55_000_000 },
 ];
@@ -48,9 +48,9 @@ export const SIERRA_UNITS: PropertyUnit[] = [
   // per bloknya masing-masing (bukan harga baru yang berdiri sendiri).
   { id: "sierra-arnica-garden-e1", cluster: "SIERRA", tipe: "ARNICA Garden", lb: 70, lt: 90, blok: "E1", noUnit: "01-05", hargaAsli: 990_000_000, hargaKpr: 912_000_000, promoOctoBooDiskonHarga: 65_000_000 },
   { id: "sierra-arnica-garden-e8", cluster: "SIERRA", tipe: "ARNICA Garden", lb: 70, lt: 90, blok: "E8", noUnit: "03-09", hargaAsli: 1_010_000_000, hargaKpr: 922_425_000, promoOctoBooDiskonHarga: 65_000_000 },
-  { id: "sierra-arnica-pool-e1", cluster: "SIERRA", tipe: "ARNICA Pool", lb: 91, lt: 90, blok: "E1", noUnit: "01-05", hargaAsli: 1_160_000_000, hargaKpr: 1_082_000_000, promoOctoBooDiskonHarga: 85_000_000 },
-  { id: "sierra-arnica-pool-e8", cluster: "SIERRA", tipe: "ARNICA Pool", lb: 91, lt: 90, blok: "E8", noUnit: "03-09", hargaAsli: 1_180_000_000, hargaKpr: 1_092_425_000, promoOctoBooDiskonHarga: 80_000_000 },
-  { id: "sierra-bianca-deluxe-hook-e3-01", cluster: "SIERRA", tipe: "BIANCA Deluxe Hook", lb: 87, lt: 95.7, blok: "E3", noUnit: "01", hargaAsli: 1_150_000_000, hargaKpr: 1_056_000_000, specialUnit: true, promoOctoBooDiskonHarga: 80_000_000 },
+  { id: "sierra-arnica-pool-e1", cluster: "SIERRA", tipe: "ARNICA Pool", lb: 91, lt: 90, blok: "E1", noUnit: "01-05", hargaAsli: 1_160_000_000, hargaKpr: 1_082_000_000, promoOctoBooDiskonHarga: 80_000_000 },
+  { id: "sierra-arnica-pool-e8", cluster: "SIERRA", tipe: "ARNICA Pool", lb: 91, lt: 90, blok: "E8", noUnit: "03-09", hargaAsli: 1_180_000_000, hargaKpr: 1_092_425_000, promoOctoBooDiskonHarga: 85_000_000 },
+  { id: "sierra-bianca-deluxe-hook-e3-01", cluster: "SIERRA", tipe: "BIANCA Deluxe Hook", lb: 87, lt: 95.7, blok: "E3-01", noUnit: "01", hargaAsli: 1_150_000_000, hargaKpr: 1_056_000_000, specialUnit: true, promoOctoBooDiskonHarga: 80_000_000 },
   // ARNICA Garden Hook & ARNICA Pool Hook sama-sama ada di blok E8-10 dan E1-6
   // (blok mencantumkan noUnit-nya langsung, sama seperti pola NEW GWEN HOOK
   // "F5-1"/"F5-8" di Montana) — ARNICA Pool Hook = ARNICA Garden Hook +
