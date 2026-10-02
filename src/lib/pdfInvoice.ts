@@ -39,14 +39,15 @@ function drawSubsidizedPriceCell(
   setelahSubsidiText: string,
   caption: string,
   ink: RGB,
-  muted: RGB
+  muted: RGB,
+  scale = 1
 ): void {
   const rightEdge = cell.x + cell.width - 1.2;
   const lineY = cell.y + cell.height * 0.42;
   const captionY = cell.y + cell.height * 0.78;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.3);
+  doc.setFontSize(7.3 * scale);
   doc.setTextColor(...ink);
   doc.text(setelahSubsidiText, rightEdge, lineY, { align: "right" });
   const diskonWidth = doc.getTextWidth(setelahSubsidiText);
@@ -61,7 +62,7 @@ function drawSubsidizedPriceCell(
   doc.line(asliX - asliWidth, lineY - 1.0, asliX, lineY - 1.0);
 
   doc.setFont("helvetica", "italic");
-  doc.setFontSize(5.2);
+  doc.setFontSize(5.2 * scale);
   doc.setTextColor(...muted);
   doc.text(caption, rightEdge, captionY, { align: "right" });
   doc.setTextColor(...ink);
@@ -113,12 +114,14 @@ export async function generateInvoicePdf(
   // adalah gambar full-bleed (public/invoice-octoboo-frame.png), bukan digambar manual.
   const margin = themed ? 16 : 12;
   const contentStartY = themed ? 80 : 31;
-  const newPageY = themed ? 80 : 12;
-  const sec5Threshold = themed ? 195 : 210;
-  const sec6Threshold = themed ? 220 : 235;
-  const tncPageBottom = themed ? pageHeight - 40 : pageHeight - 12;
 
-  const gap = 3.5;
+  // Invoice bertema WAJIB 1 halaman (tidak boleh ada halaman ke-2) — jadi semua ukuran
+  // font/spacing vertikal di-rapatkan sedikit (SCALE) dan logic pindah halaman di bawah
+  // dimatikan total untuk tema ini, apa pun panjang kontennya.
+  const SCALE = themed ? 0.82 : 1;
+  const s = (n: number) => n * SCALE;
+
+  const gap = s(3.5);
   const colWidth = (pageWidth - margin * 2 - gap) / 2;
   const leftX = margin;
   const rightX = margin + colWidth + gap;
@@ -173,34 +176,34 @@ export async function generateInvoicePdf(
    * bisa dibandingkan tingginya lalu baris berikutnya dimulai dari titik terbawah. */
   function card(title: string, x: number, width: number, startY: number, rows: [string, string][], note?: string): number {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
+    doc.setFontSize(s(8));
     doc.setTextColor(...GOLD);
-    doc.text(title.toUpperCase(), x + 3, startY + 4.3);
+    doc.text(title.toUpperCase(), x + 3, startY + s(4.3));
 
     autoTable(doc, {
-      startY: startY + 6,
+      startY: startY + s(6),
       margin: { left: x + 3, right: pageWidth - (x + width - 3) },
       tableWidth: width - 6,
       theme: "plain",
-      styles: { fontSize: 7.6, textColor: INK, cellPadding: { top: 0.45, bottom: 0.45, left: 0, right: 0 } },
+      styles: { fontSize: s(7.6), textColor: INK, cellPadding: { top: s(0.45), bottom: s(0.45), left: 0, right: 0 } },
       columnStyles: {
         0: { textColor: MUTED, cellWidth: (width - 6) * 0.52 },
         1: { fontStyle: "bold", halign: "right" },
       },
       body: rows,
     });
-    let endY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 1.5;
+    let endY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + s(1.5);
 
     if (note) {
       doc.setFont("helvetica", "italic");
-      doc.setFontSize(6.2);
+      doc.setFontSize(s(6.2));
       doc.setTextColor(...MUTED);
       const lines = doc.splitTextToSize(note, width - 6);
-      doc.text(lines, x + 3, endY + 2.2);
-      endY += lines.length * 2.7 + 0.8;
+      doc.text(lines, x + 3, endY + s(2.2));
+      endY += lines.length * s(2.7) + s(0.8);
     }
 
-    endY += 2.2;
+    endY += s(2.2);
     doc.setDrawColor(...BORDER);
     doc.setLineWidth(0.25);
     doc.roundedRect(x, startY, width, endY - startY, 1.5, 1.5, "S");
@@ -221,21 +224,21 @@ export async function generateInvoicePdf(
     subsidyByRow?: Record<number, { asli: number; setelahSubsidi: number; caption: string }>
   ): number {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
+    doc.setFontSize(s(8));
     doc.setTextColor(...GOLD);
-    doc.text(title.toUpperCase(), margin + 3, startY + 4.3);
+    doc.text(title.toUpperCase(), margin + 3, startY + s(4.3));
 
     const columnStyles: Record<number, { halign: "right" }> = {};
     rightAlignCols.forEach((c) => (columnStyles[c] = { halign: "right" }));
     const subsidyCol = head.length - 1;
 
     autoTable(doc, {
-      startY: startY + 6,
+      startY: startY + s(6),
       margin: { left: margin + 3, right: margin + 3 },
       head: [head],
       body,
-      styles: { fontSize: 7.3, textColor: INK, cellPadding: 0.9 },
-      headStyles: { fillColor: TABLE_HEAD_BG, textColor: TABLE_HEAD_TEXT, fontStyle: "bold", fontSize: 7 },
+      styles: { fontSize: s(7.3), textColor: INK, cellPadding: s(0.9) },
+      headStyles: { fillColor: TABLE_HEAD_BG, textColor: TABLE_HEAD_TEXT, fontStyle: "bold", fontSize: s(7) },
       columnStyles,
       didParseCell: (data: CellHookData) => {
         // Selang-seling warna baris ditentukan manual dari row.index (genap/ganjil),
@@ -248,18 +251,18 @@ export async function generateInvoicePdf(
         if (!subsidyByRow) return;
         if (data.section === "body" && data.column.index === subsidyCol && subsidyByRow[data.row.index]) {
           data.cell.text = [];
-          data.cell.styles.minCellHeight = 7.4;
+          data.cell.styles.minCellHeight = s(7.4);
         }
       },
       didDrawCell: (data: CellHookData) => {
         if (!subsidyByRow) return;
         const sub = data.section === "body" ? subsidyByRow[data.row.index] : undefined;
         if (sub && data.column.index === subsidyCol) {
-          drawSubsidizedPriceCell(doc, data.cell, formatRupiah(sub.asli), formatRupiah(sub.setelahSubsidi), sub.caption, INK, MUTED);
+          drawSubsidizedPriceCell(doc, data.cell, formatRupiah(sub.asli), formatRupiah(sub.setelahSubsidi), sub.caption, INK, MUTED, SCALE);
         }
       },
     });
-    const endY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 2;
+    const endY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + s(2);
     doc.setDrawColor(...BORDER);
     doc.setLineWidth(0.25);
     doc.roundedRect(margin, startY, pageWidth - margin * 2, endY - startY, 1.5, 1.5, "S");
@@ -328,10 +331,10 @@ export async function generateInvoicePdf(
 
   // ---- Section 5: KPR Breakdown ----
   if (result.pokokKpr !== null && result.tierDisplayRows) {
-    if (y > sec5Threshold) {
+    // Invoice bertema WAJIB 1 halaman — jangan pernah ganti halaman di sini.
+    if (!themed && y > 210) {
       doc.addPage();
-      if (themed) await drawOctoBooFrame();
-      y = newPageY;
+      y = 12;
     }
     const head = ["Tahun", "Suku Bunga", "Angsuran/bln"];
     const subsidyCaption = `Subsidi ${formatRupiah(result.subsidiAngsuranNominal)}/${result.subsidiAngsuranBulan} bln`;
@@ -371,10 +374,9 @@ export async function generateInvoicePdf(
   }
 
   // ---- Section 6: Cash Flow ----
-  if (y > sec6Threshold) {
+  if (!themed && y > 235) {
     doc.addPage();
-    if (themed) await drawOctoBooFrame();
-    y = newPageY;
+    y = 12;
   }
   const cashFlowSubsidyCaption = `Subsidi ${formatRupiah(result.subsidiAngsuranNominal)}/${result.subsidiAngsuranBulan} bln`;
   const cashFlowSubsidy: Record<number, { asli: number; setelahSubsidi: number; caption: string }> = {};
@@ -405,10 +407,10 @@ export async function generateInvoicePdf(
 
   function bulletHeight(list: string[]): number {
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.8);
+    doc.setFontSize(s(6.8));
     let h = 0;
     for (const t of list) {
-      h += doc.splitTextToSize(`•  ${t}`, tcColWidth - 3).length * 2.9;
+      h += doc.splitTextToSize(`•  ${t}`, tcColWidth - 3).length * s(2.9);
     }
     return h;
   }
@@ -416,52 +418,52 @@ export async function generateInvoicePdf(
   // Ukur dulu tinggi total kartu S&K (bullets 2 kolom + info pembayaran + catatan)
   // sebelum menggambar, supaya keputusan pindah halaman akurat — bukan tebakan.
   const estTcHeight =
-    8.5 + Math.max(bulletHeight(colA), bulletHeight(colB)) + 2.2 + 3.4 + 2.9 + 3.4 + catatanLines.length * 2.7 + 4;
-  if (y + estTcHeight > tncPageBottom) {
+    s(8.5) + Math.max(bulletHeight(colA), bulletHeight(colB)) + s(2.2) + s(3.4) + s(2.9) + s(3.4) + catatanLines.length * s(2.7) + s(4);
+  // Invoice bertema WAJIB 1 halaman — jangan pernah ganti halaman di sini.
+  if (!themed && y + estTcHeight > pageHeight - 12) {
     doc.addPage();
-    if (themed) await drawOctoBooFrame();
-    y = newPageY;
+    y = 12;
   }
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(s(8));
   doc.setTextColor(...GOLD);
-  doc.text("SYARAT & KETENTUAN", margin + 3, y + 4.3);
+  doc.text("SYARAT & KETENTUAN", margin + 3, y + s(4.3));
 
   function bulletList(list: string[], x: number, startYList: number): number {
     let yy = startYList;
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.8);
+    doc.setFontSize(s(6.8));
     doc.setTextColor(...MUTED);
     for (const t of list) {
       const lines = doc.splitTextToSize(`•  ${t}`, tcColWidth - 3);
       doc.text(lines, x, yy);
-      yy += lines.length * 2.9;
+      yy += lines.length * s(2.9);
     }
     return yy;
   }
-  const tcEndA = bulletList(colA, leftX + 3, y + 8.5);
-  const tcEndB = bulletList(colB, rightX + 3, y + 8.5);
-  let footY = Math.max(tcEndA, tcEndB) + 2.2;
+  const tcEndA = bulletList(colA, leftX + 3, y + s(8.5));
+  const tcEndB = bulletList(colB, rightX + 3, y + s(8.5));
+  let footY = Math.max(tcEndA, tcEndB) + s(2.2);
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.2);
+  doc.setFontSize(s(7.2));
   doc.setTextColor(...INK);
   doc.text(
     `Pembayaran: Bank ${BANK_ACCOUNT.bank} No. ${BANK_ACCOUNT.nomor} a.n ${BANK_ACCOUNT.atasNama}`,
     leftX + 3,
     footY
   );
-  footY += 3.4;
+  footY += s(3.4);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...MUTED);
   doc.text(`Head Office: ${COMPANY_INFO.headOffice}`, leftX + 3, footY);
-  footY += 2.9;
+  footY += s(2.9);
   doc.text(`Marketing Gallery: ${COMPANY_INFO.marketingGallery}`, leftX + 3, footY);
-  footY += 3.4;
-  doc.setFontSize(6.3);
+  footY += s(3.4);
+  doc.setFontSize(s(6.3));
   doc.text(catatanLines, leftX + 3, footY);
-  footY += catatanLines.length * 2.7;
+  footY += catatanLines.length * s(2.7);
 
   doc.setDrawColor(...BORDER);
   doc.setLineWidth(0.25);
