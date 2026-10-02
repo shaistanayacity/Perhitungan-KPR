@@ -55,6 +55,58 @@ export interface KprFloatingTail {
   bulanSelesai: number;
 }
 
+/** Baris tampilan KPR Breakdown — turunan dari KprTierResult, tapi tier pertama
+ * dipecah jadi 2 baris kalau durasinya lebih panjang dari masa subsidi Angsuran
+ * OctoBoo! (6 bulan), supaya subsidi TIDAK terlihat berlaku untuk seluruh tier
+ * (mis. 3 tahun) padahal aslinya cuma 6 bulan pertama. `labelBulan` true berarti
+ * baris ini hasil pemotongan tier (tampilkan rentang "Bulan X–Y"), bukan tahun
+ * penuh — dipakai di web (ResultsPanel) & invoice PDF. */
+export interface KprDisplayRow {
+  tierKe: number;
+  tahunMulai: number;
+  tahunSelesai: number;
+  bulanMulai: number;
+  bulanSelesai: number;
+  sukuBunga: number;
+  angsuranBulanan: number;
+  disubsidi: boolean;
+  labelBulan: boolean;
+}
+
+export function buildKprDisplayRows(tierBreakdown: KprTierResult[], subsidiBulan: number): KprDisplayRow[] {
+  if (subsidiBulan <= 0) {
+    return tierBreakdown.map((t) => ({ ...t, disubsidi: false, labelBulan: false }));
+  }
+  const rows: KprDisplayRow[] = [];
+  for (const t of tierBreakdown) {
+    const tierDurasiBulan = t.bulanSelesai - t.bulanMulai + 1;
+    const overlapEnd = Math.min(t.bulanSelesai, subsidiBulan);
+    const overlapBulan = overlapEnd - t.bulanMulai + 1;
+
+    if (overlapBulan <= 0) {
+      rows.push({ ...t, disubsidi: false, labelBulan: false });
+    } else if (overlapBulan >= tierDurasiBulan) {
+      rows.push({ ...t, disubsidi: true, labelBulan: false });
+    } else {
+      rows.push({
+        ...t,
+        bulanSelesai: overlapEnd,
+        tahunSelesai: Math.ceil(overlapEnd / 12),
+        disubsidi: true,
+        labelBulan: true,
+      });
+      rows.push({
+        ...t,
+        bulanMulai: overlapEnd + 1,
+        tahunMulai: Math.floor(overlapEnd / 12) + 1,
+        disubsidi: false,
+        labelBulan: true,
+      });
+    }
+  }
+  return rows;
+}
+
 export interface CalculatorInput {
   unit: PropertyUnit;
   term: TermOfPayment;
@@ -94,6 +146,7 @@ export interface CalculationResult {
   tenorKprTahun: number | null;
   kprMode: KprMode | null;
   tierBreakdown: KprTierResult[] | null;
+  tierDisplayRows: KprDisplayRow[] | null; // tierBreakdown yang sudah dipecah per batas subsidi, dipakai utk render tabel
   floatingTail: KprFloatingTail | null;
   angsuranAwalKpr: number | null; // angsuran tier pertama, untuk ringkasan header
 
@@ -282,6 +335,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
       tenorKprTahun: null,
       kprMode: null,
       tierBreakdown: null,
+      tierDisplayRows: null,
       floatingTail: null,
       angsuranAwalKpr: null,
       promoSubsidiAngsuranAktif: false,
@@ -339,6 +393,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
       tenorKprTahun: null,
       kprMode: null,
       tierBreakdown: null,
+      tierDisplayRows: null,
       floatingTail: null,
       angsuranAwalKpr: null,
       promoSubsidiAngsuranAktif: promoSubsidiAngsuranAktifTb,
@@ -391,6 +446,10 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
   }
 
   const promoSubsidiAngsuranAktifKpr = isOctoBooPromoActive();
+  const tierDisplayRows = buildKprDisplayRows(
+    tierBreakdown,
+    promoSubsidiAngsuranAktifKpr ? OCTOBOO_SUBSIDI_ANGSURAN_BULAN : 0
+  );
 
   return {
     hargaJual,
@@ -407,6 +466,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     tenorKprTahun: tenorTahun,
     kprMode,
     tierBreakdown,
+    tierDisplayRows,
     floatingTail,
     angsuranAwalKpr: angsuranAwal,
     promoSubsidiAngsuranAktif: promoSubsidiAngsuranAktifKpr,

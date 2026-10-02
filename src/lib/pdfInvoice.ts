@@ -197,19 +197,21 @@ export async function generateInvoicePdf(
   y = Math.max(rowB1, rowB2);
 
   // ---- Section 5: KPR Breakdown ----
-  if (result.pokokKpr !== null && result.tierBreakdown) {
+  if (result.pokokKpr !== null && result.tierDisplayRows) {
     if (y > 210) {
       doc.addPage();
       y = 12;
     }
     const head = ["Tahun", "Suku Bunga", "Angsuran/bln"];
-    const body = result.tierBreakdown.map((t) => [
-      `${t.tahunMulai}${t.tahunSelesai > t.tahunMulai ? `–${t.tahunSelesai}` : ""}`,
-      formatPercent(t.sukuBunga),
+    const body = result.tierDisplayRows.map((row) => [
+      row.labelBulan
+        ? `Bulan ${row.bulanMulai}${row.bulanSelesai > row.bulanMulai ? `–${row.bulanSelesai}` : ""}`
+        : `${row.tahunMulai}${row.tahunSelesai > row.tahunMulai ? `–${row.tahunSelesai}` : ""}`,
+      formatPercent(row.sukuBunga),
       formatRupiah(
-        t.tierKe === 1 && result.angsuranAwalKprSetelahSubsidi !== null
-          ? result.angsuranAwalKprSetelahSubsidi
-          : t.angsuranBulanan
+        row.disubsidi && result.subsidiAngsuranNominal > 0
+          ? Math.max(0, row.angsuranBulanan - result.subsidiAngsuranNominal)
+          : row.angsuranBulanan
       ),
     ]);
     if (result.floatingTail) {
