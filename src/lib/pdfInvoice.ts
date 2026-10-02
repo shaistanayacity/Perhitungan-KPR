@@ -237,8 +237,14 @@ export async function generateInvoicePdf(
       styles: { fontSize: 7.3, textColor: INK, cellPadding: 0.9 },
       headStyles: { fillColor: TABLE_HEAD_BG, textColor: TABLE_HEAD_TEXT, fontStyle: "bold", fontSize: 7 },
       columnStyles,
-      alternateRowStyles: { fillColor: ZEBRA },
       didParseCell: (data: CellHookData) => {
+        // Selang-seling warna baris ditentukan manual dari row.index (genap/ganjil),
+        // bukan diserahkan ke alternateRowStyles bawaan autoTable — supaya tetap
+        // konsisten selang-seling walau ada baris yang tingginya beda-beda (baris
+        // subsidi OctoBoo! dibikin lebih tinggi via minCellHeight di bawah).
+        if (data.section === "body") {
+          data.cell.styles.fillColor = data.row.index % 2 === 1 ? ZEBRA : false;
+        }
         if (!subsidyByRow) return;
         if (data.section === "body" && data.column.index === subsidyCol && subsidyByRow[data.row.index]) {
           data.cell.text = [];
