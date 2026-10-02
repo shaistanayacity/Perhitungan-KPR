@@ -26,9 +26,6 @@ export default function ThemeToggle() {
       suppressHydrationWarning
       className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground-muted transition hover:text-foreground"
     >
-      <span aria-hidden suppressHydrationWarning>
-        {isDark ? "☾" : "☀"}
-      </span>
       <span suppressHydrationWarning>{isDark ? "Gelap" : "Terang"}</span>
     </button>
   );

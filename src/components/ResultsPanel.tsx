@@ -151,7 +151,7 @@ export default function ResultsPanel({
           )}
           {result.promoSubsidiAngsuranAktif && (
             <p className="text-xs font-medium text-success">
-              🎉 Subsidi Angsuran {formatRupiah(result.subsidiAngsuranNominal)} Selama {result.subsidiAngsuranBulan}{" "}
+              Subsidi Angsuran {formatRupiah(result.subsidiAngsuranNominal)} Selama {result.subsidiAngsuranBulan}{" "}
               Bulan
             </p>
           )}
