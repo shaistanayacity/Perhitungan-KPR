@@ -97,6 +97,16 @@ export interface CalculationResult {
   floatingTail: KprFloatingTail | null;
   angsuranAwalKpr: number | null; // angsuran tier pertama, untuk ringkasan header
 
+  // §Promo "OctoBoo!" (Oktober 2026 saja) — subsidi angsuran/cicilan bulanan
+  // Rp1.000.000 selama 6 bulan pertama, khusus Tunai Bertahap & KPR. Nilai asli
+  // (cicilanBulanan/angsuranAwalKpr di atas) TIDAK diubah — field di bawah ini
+  // cuma lapisan tampilan promo, supaya cash flow & angka KPR tetap akurat.
+  promoSubsidiAngsuranAktif: boolean;
+  subsidiAngsuranNominal: number; // 0 kalau promo nonaktif
+  subsidiAngsuranBulan: number; // 0 kalau promo nonaktif, else 6
+  cicilanBulananSetelahSubsidi: number | null;
+  angsuranAwalKprSetelahSubsidi: number | null;
+
   // §Cash flow timeline
   cashFlow: CashFlowMilestone[];
 }
@@ -117,6 +127,38 @@ function hitungDiskonPpnDtp(hargaSetelahDiskonLain: number, roundPpnDtp = false)
   return Math.max(0, pembulatan(nilai / 1_000_000) * 1_000_000);
 }
 
+// ---- Promo "OctoBoo!" — khusus bulan Oktober 2026 ----
+// Rumus Diskon PPN DTP di atas TETAP ADA dan dipakai lagi otomatis begitu
+// promo berakhir (atau untuk unit yang tidak ikut promo) — tidak dihapus.
+const OCTOBOO_PROMO_TAHUN = 2026;
+const OCTOBOO_PROMO_BULAN = 9; // Oktober, 0-indexed (sesuai Date#getMonth())
+const OCTOBOO_SUBSIDI_ANGSURAN_NOMINAL = 1_000_000;
+const OCTOBOO_SUBSIDI_ANGSURAN_BULAN = 6;
+
+export function isOctoBooPromoActive(date: Date = new Date()): boolean {
+  return date.getFullYear() === OCTOBOO_PROMO_TAHUN && date.getMonth() === OCTOBOO_PROMO_BULAN;
+}
+
+/** Label baris diskon di hasil/invoice — "Diskon Harga" selama promo OctoBoo!
+ * aktif (menggantikan "Diskon PPN DTP"), berlaku untuk SEMUA unit di bulan itu
+ * biar konsisten, walau nominalnya sendiri cuma di-override untuk unit yang
+ * ikut promo (lihat hitungDiskonHarga). */
+export function getDiskonHargaLabel(date: Date = new Date()): string {
+  return isOctoBooPromoActive(date) ? "Diskon Harga" : "Diskon PPN DTP";
+}
+
+/** Diskon PPN DTP / Diskon Harga — selama promo OctoBoo! aktif DAN unit ini
+ * ikut promo (unit.promoOctoBooDiskonHarga terisi), nominalnya flat dari
+ * pricelist, menggantikan rumus di atas sepenuhnya (berlaku sama di Hard Cash,
+ * Tunai Bertahap, maupun KPR). Unit yang tidak ikut promo (mis. GWEN HOOK,
+ * NEW GWEN HOOK) tetap pakai hitungDiskonPpnDtp seperti biasa. */
+function hitungDiskonHarga(unit: PropertyUnit, hargaSetelahDiskonLain: number): number {
+  if (isOctoBooPromoActive() && unit.promoOctoBooDiskonHarga !== undefined) {
+    return unit.promoOctoBooDiskonHarga;
+  }
+  return hitungDiskonPpnDtp(hargaSetelahDiskonLain, unit.roundPpnDtp);
+}
+
 /** Harga setelah diskon (Diskon Khusus + PPN DTP) untuk skema KPR — basis yang
  * dipakai `calculateSimulation` untuk menghitung Uang Muka (`uangMuka = ini ×
  * dpPercent`), BUKAN Harga Jual mentah. Diekspos supaya form (field DP Nominal)
@@ -126,7 +168,7 @@ function hitungDiskonPpnDtp(hargaSetelahDiskonLain: number, roundPpnDtp = false)
 export function hitungHargaSetelahDiskonKpr(unit: PropertyUnit, diskonCustom: number): number {
   const hargaJual = unit.hargaAsli;
   const dc = Math.max(0, diskonCustom);
-  const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - dc, unit.roundPpnDtp);
+  const diskonPpnDtp = hitungDiskonHarga(unit, hargaJual - dc);
   return hargaJual - dc - diskonPpnDtp;
 }
 
@@ -213,7 +255,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
 
   if (term === "HARD_CASH") {
     const diskonTunaiKeras = hargaJual * 0.05;
-    const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonTunaiKeras - diskonCustom, unit.roundPpnDtp);
+    const diskonPpnDtp = hitungDiskonHarga(unit, hargaJual - diskonTunaiKeras - diskonCustom);
     const hargaSetelahDiskon = hargaJual - diskonTunaiKeras - diskonCustom - diskonPpnDtp;
     // Uang Muka 80% dihitung dari Harga Jual (harga list), BUKAN dari harga setelah diskon.
     const uangMuka80 = hargaJual * 0.8;
@@ -242,12 +284,17 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
       tierBreakdown: null,
       floatingTail: null,
       angsuranAwalKpr: null,
+      promoSubsidiAngsuranAktif: false,
+      subsidiAngsuranNominal: 0,
+      subsidiAngsuranBulan: 0,
+      cicilanBulananSetelahSubsidi: null,
+      angsuranAwalKprSetelahSubsidi: null,
       cashFlow,
     };
   }
 
   if (term === "TUNAI_BERTAHAP") {
-    const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonCustom, unit.roundPpnDtp);
+    const diskonPpnDtp = hitungDiskonHarga(unit, hargaJual - diskonCustom);
     const hargaSetelahDiskon = hargaJual - diskonCustom - diskonPpnDtp;
     const tenorBulan = Math.max(1, Math.round(input.tenorBertahapBulan ?? 6));
     const sisaPelunasan = hargaSetelahDiskon - utj;
@@ -275,6 +322,8 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
       nominal: angsuranTerakhir,
     });
 
+    const promoSubsidiAngsuranAktifTb = isOctoBooPromoActive();
+
     return {
       hargaJual,
       diskonTunaiKeras: 0,
@@ -292,6 +341,13 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
       tierBreakdown: null,
       floatingTail: null,
       angsuranAwalKpr: null,
+      promoSubsidiAngsuranAktif: promoSubsidiAngsuranAktifTb,
+      subsidiAngsuranNominal: promoSubsidiAngsuranAktifTb ? OCTOBOO_SUBSIDI_ANGSURAN_NOMINAL : 0,
+      subsidiAngsuranBulan: promoSubsidiAngsuranAktifTb ? OCTOBOO_SUBSIDI_ANGSURAN_BULAN : 0,
+      cicilanBulananSetelahSubsidi: promoSubsidiAngsuranAktifTb
+        ? Math.max(0, cicilanBulanan - OCTOBOO_SUBSIDI_ANGSURAN_NOMINAL)
+        : null,
+      angsuranAwalKprSetelahSubsidi: null,
       cashFlow,
     };
   }
@@ -300,7 +356,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
   const tenorTahun = input.tenorTahun ?? 20;
   const dpPercent = Math.min(Math.max(input.dpPercent ?? 0, 0), 0.9);
   const kprMode: KprMode = input.kprMode ?? "FIX";
-  const diskonPpnDtp = hitungDiskonPpnDtp(hargaJual - diskonCustom, unit.roundPpnDtp);
+  const diskonPpnDtp = hitungDiskonHarga(unit, hargaJual - diskonCustom);
   const hargaSetelahDiskon = hargaJual - diskonCustom - diskonPpnDtp;
   const uangMuka = hargaSetelahDiskon * dpPercent;
   const pokokKpr = hargaSetelahDiskon - utj - uangMuka;
@@ -334,6 +390,8 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     });
   }
 
+  const promoSubsidiAngsuranAktifKpr = isOctoBooPromoActive();
+
   return {
     hargaJual,
     diskonTunaiKeras: 0,
@@ -351,6 +409,13 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     tierBreakdown,
     floatingTail,
     angsuranAwalKpr: angsuranAwal,
+    promoSubsidiAngsuranAktif: promoSubsidiAngsuranAktifKpr,
+    subsidiAngsuranNominal: promoSubsidiAngsuranAktifKpr ? OCTOBOO_SUBSIDI_ANGSURAN_NOMINAL : 0,
+    subsidiAngsuranBulan: promoSubsidiAngsuranAktifKpr ? OCTOBOO_SUBSIDI_ANGSURAN_BULAN : 0,
+    cicilanBulananSetelahSubsidi: null,
+    angsuranAwalKprSetelahSubsidi: promoSubsidiAngsuranAktifKpr
+      ? Math.max(0, angsuranAwal - OCTOBOO_SUBSIDI_ANGSURAN_NOMINAL)
+      : null,
     cashFlow,
   };
 }

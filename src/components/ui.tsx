@@ -163,7 +163,7 @@ export function StatRow({
   negative = false,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   emphasis?: boolean;
   negative?: boolean;
 }) {

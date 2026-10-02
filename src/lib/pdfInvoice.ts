@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { FormState } from "./formReducer";
 import { PropertyUnit, TERMS_AND_CONDITIONS, BANK_ACCOUNT, COMPANY_INFO } from "./pricelist";
-import { CalculationResult, getTermLabel, KPR_MODE_LABELS } from "./kpr-calculator";
+import { CalculationResult, getTermLabel, getDiskonHargaLabel, KPR_MODE_LABELS } from "./kpr-calculator";
 import { formatRupiah, formatPercent, formatDateID, slugifyFileSegment } from "./format";
 
 const NAVY: [number, number, number] = [20, 41, 82]; // biru navy, dicerahkan dikit dari [15,30,61]
@@ -166,7 +166,7 @@ export async function generateInvoicePdf(
   if (result.diskonCustom > 0)
     breakdownRows.push(["Diskon Khusus", `- ${formatRupiah(result.diskonCustom)}`]);
   if (result.diskonPpnDtp > 0)
-    breakdownRows.push(["Diskon PPN DTP", `- ${formatRupiah(result.diskonPpnDtp)}`]);
+    breakdownRows.push([getDiskonHargaLabel(), `- ${formatRupiah(result.diskonPpnDtp)}`]);
   breakdownRows.push(["Harga Transaksi", formatRupiah(result.hargaSetelahDiskon)]);
 
   const termRows: [string, string][] = [
@@ -175,11 +175,21 @@ export async function generateInvoicePdf(
   ];
   if (result.uangMuka > 0) termRows.push(["Uang Muka", formatRupiah(result.uangMuka)]);
   if (result.cicilanBulanan !== null)
-    termRows.push([`Cicilan (${result.tenorBertahapBulan} bln)`, formatRupiah(result.cicilanBulanan)]);
+    termRows.push([
+      `Cicilan (${result.tenorBertahapBulan} bln)`,
+      formatRupiah(result.cicilanBulananSetelahSubsidi ?? result.cicilanBulanan),
+    ]);
+  if (state.term === "KPR" && result.angsuranAwalKprSetelahSubsidi !== null)
+    termRows.push(["Angsuran Awal", formatRupiah(result.angsuranAwalKprSetelahSubsidi)]);
   if (state.term !== "TUNAI_BERTAHAP")
     termRows.push([
       state.term === "KPR" ? "Harga KPR" : "Sisa Pelunasan",
       formatRupiah(result.sisaPelunasan),
+    ]);
+  if (result.promoSubsidiAngsuranAktif)
+    termRows.push([
+      "Promo OctoBoo!",
+      `Subsidi Angsuran ${formatRupiah(result.subsidiAngsuranNominal)} Selama ${result.subsidiAngsuranBulan} Bulan`,
     ]);
 
   const rowB1 = card("3. Breakdown Harga", leftX, colWidth, y, breakdownRows);
@@ -196,7 +206,11 @@ export async function generateInvoicePdf(
     const body = result.tierBreakdown.map((t) => [
       `${t.tahunMulai}${t.tahunSelesai > t.tahunMulai ? `–${t.tahunSelesai}` : ""}`,
       formatPercent(t.sukuBunga),
-      formatRupiah(t.angsuranBulanan),
+      formatRupiah(
+        t.tierKe === 1 && result.angsuranAwalKprSetelahSubsidi !== null
+          ? result.angsuranAwalKprSetelahSubsidi
+          : t.angsuranBulanan
+      ),
     ]);
     if (result.floatingTail) {
       const ft = result.floatingTail;
