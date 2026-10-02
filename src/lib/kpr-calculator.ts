@@ -121,7 +121,9 @@ export interface CalculatorInput {
 export interface CashFlowMilestone {
   hari: string; // label waktu, mis. "Hari ke-1"
   keterangan: string;
-  nominal: number;
+  nominal: number; // nominal ASLI (sebelum subsidi) — supaya konsisten walau promo nonaktif
+  disubsidi?: boolean; // true kalau milestone ini (sebagian/seluruh) kena subsidi Angsuran OctoBoo!
+  nominalSetelahSubsidi?: number; // cuma terisi kalau disubsidi true
 }
 
 export interface CalculationResult {
@@ -203,8 +205,8 @@ export function getDiskonHargaLabel(date: Date = new Date()): string {
 /** Diskon PPN DTP / Diskon Harga — selama promo OctoBoo! aktif DAN unit ini
  * ikut promo (unit.promoOctoBooDiskonHarga terisi), nominalnya flat dari
  * pricelist, menggantikan rumus di atas sepenuhnya (berlaku sama di Hard Cash,
- * Tunai Bertahap, maupun KPR). Unit yang tidak ikut promo (mis. GWEN HOOK,
- * NEW GWEN HOOK) tetap pakai hitungDiskonPpnDtp seperti biasa. */
+ * Tunai Bertahap, maupun KPR). Unit yang tidak ikut promo tetap pakai
+ * hitungDiskonPpnDtp seperti biasa. */
 function hitungDiskonHarga(unit: PropertyUnit, hargaSetelahDiskonLain: number): number {
   if (isOctoBooPromoActive() && unit.promoOctoBooDiskonHarga !== undefined) {
     return unit.promoOctoBooDiskonHarga;
@@ -358,25 +360,46 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     // memperhitungkan diskon & UTJ).
     const cicilanBulanan = hargaJual / tenorBulan;
     const angsuranTerakhir = sisaPelunasan - cicilanBulanan * (tenorBulan - 1);
+    const promoSubsidiAngsuranAktifTb = isOctoBooPromoActive();
+    const subsidiBulanTb = promoSubsidiAngsuranAktifTb ? OCTOBOO_SUBSIDI_ANGSURAN_BULAN : 0;
 
     // Baris cash flow dirangkum jadi rentang (mis. "Angsuran ke-1 s/d ke-5" + pelunasan)
     // mengikuti konvensi pricelist, bukan satu baris per bulan — supaya invoice tetap
-    // ringkas walau tenornya panjang.
+    // ringkas walau tenornya panjang. Kalau promo OctoBoo! aktif, rentang angsuran rutin
+    // dipecah jadi bagian yang kena subsidi (6 bulan pertama) & sisanya harga normal —
+    // supaya TIDAK terlihat seolah seluruh rentang dapat subsidi.
     cashFlow.push({ hari: "Hari ke-1", keterangan: "Uang Tanda Jadi (UTJ)", nominal: utj });
     if (tenorBulan > 1) {
-      cashFlow.push({
-        hari: `Hari ke-7 dst. (bulan ke-1 s/d ke-${tenorBulan - 1})`,
-        keterangan: `Angsuran ke-1 s/d ke-${tenorBulan - 1}`,
-        nominal: cicilanBulanan,
-      });
+      const jumlahAngsuranRutin = tenorBulan - 1;
+      const overlapEnd = Math.min(jumlahAngsuranRutin, subsidiBulanTb);
+      if (overlapEnd <= 0) {
+        cashFlow.push({
+          hari: `Hari ke-7 dst. (bulan ke-1 s/d ke-${jumlahAngsuranRutin})`,
+          keterangan: `Angsuran ke-1 s/d ke-${jumlahAngsuranRutin}`,
+          nominal: cicilanBulanan,
+        });
+      } else {
+        cashFlow.push({
+          hari: `Hari ke-7 dst. (bulan ke-1 s/d ke-${overlapEnd})`,
+          keterangan: `Angsuran ke-1 s/d ke-${overlapEnd}`,
+          nominal: cicilanBulanan,
+          disubsidi: true,
+          nominalSetelahSubsidi: Math.max(0, cicilanBulanan - OCTOBOO_SUBSIDI_ANGSURAN_NOMINAL),
+        });
+        if (overlapEnd < jumlahAngsuranRutin) {
+          cashFlow.push({
+            hari: `bulan ke-${overlapEnd + 1} s/d ke-${jumlahAngsuranRutin}`,
+            keterangan: `Angsuran ke-${overlapEnd + 1} s/d ke-${jumlahAngsuranRutin}`,
+            nominal: cicilanBulanan,
+          });
+        }
+      }
     }
     cashFlow.push({
       hari: "Saat AJB Notaris",
       keterangan: `Angsuran ke-${tenorBulan} (pelunasan)`,
       nominal: angsuranTerakhir,
     });
-
-    const promoSubsidiAngsuranAktifTb = isOctoBooPromoActive();
 
     return {
       hargaJual,
@@ -420,6 +443,11 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
   const tiers = input.tiers && input.tiers.length > 0 ? input.tiers : defaultTiers;
   const { tierBreakdown, floatingTail } = hitungTierBunga(pokokKpr, tenorTahun, tiers);
   const angsuranAwal = tierBreakdown[0]?.angsuranBulanan ?? 0;
+  const promoSubsidiAngsuranAktifKpr = isOctoBooPromoActive();
+  const tierDisplayRows = buildKprDisplayRows(
+    tierBreakdown,
+    promoSubsidiAngsuranAktifKpr ? OCTOBOO_SUBSIDI_ANGSURAN_BULAN : 0
+  );
 
   cashFlow.push({ hari: "Hari ke-1", keterangan: "Uang Tanda Jadi (UTJ)", nominal: utj });
   if (uangMuka > 0) {
@@ -430,11 +458,20 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     });
   }
   cashFlow.push({ hari: "Hari ke-60 (maks.)", keterangan: "Permohonan KPR disetujui (Pokok KPR)", nominal: pokokKpr });
-  tierBreakdown.forEach((t) => {
+  // Dibangun dari tierDisplayRows (bukan tierBreakdown mentah) supaya tier pertama yang
+  // durasinya lebih panjang dari masa subsidi (6 bulan) ikut terpecah di sini juga — kalau
+  // tidak, baris cash flow akan terlihat seolah subsidi berlaku untuk seluruh tier.
+  tierDisplayRows.forEach((row) => {
+    const label = row.labelBulan
+      ? `Bulan ${row.bulanMulai}-${row.bulanSelesai}`
+      : `Tahun ${row.tahunMulai}${row.tahunSelesai > row.tahunMulai ? `-${row.tahunSelesai}` : ""}`;
     cashFlow.push({
-      hari: `Bulan ke-${t.bulanMulai} s/d ke-${t.bulanSelesai}`,
-      keterangan: `Angsuran Tahun ${t.tahunMulai}-${t.tahunSelesai} (bunga ${(t.sukuBunga * 100).toFixed(2)}%) — ${formatRupiah(t.angsuranBulanan)}/bulan`,
-      nominal: t.angsuranBulanan,
+      hari: `Bulan ke-${row.bulanMulai} s/d ke-${row.bulanSelesai}`,
+      keterangan: `Angsuran ${label} (bunga ${(row.sukuBunga * 100).toFixed(2)}%) — ${formatRupiah(row.angsuranBulanan)}/bulan`,
+      nominal: row.angsuranBulanan,
+      ...(row.disubsidi
+        ? { disubsidi: true, nominalSetelahSubsidi: Math.max(0, row.angsuranBulanan - OCTOBOO_SUBSIDI_ANGSURAN_NOMINAL) }
+        : {}),
     });
   });
   if (floatingTail) {
@@ -444,12 +481,6 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
       nominal: 0,
     });
   }
-
-  const promoSubsidiAngsuranAktifKpr = isOctoBooPromoActive();
-  const tierDisplayRows = buildKprDisplayRows(
-    tierBreakdown,
-    promoSubsidiAngsuranAktifKpr ? OCTOBOO_SUBSIDI_ANGSURAN_BULAN : 0
-  );
 
   return {
     hargaJual,

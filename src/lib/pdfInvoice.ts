@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable, { CellHookData } from "jspdf-autotable";
 import { FormState } from "./formReducer";
 import { PropertyUnit, TERMS_AND_CONDITIONS, BANK_ACCOUNT, COMPANY_INFO } from "./pricelist";
 import { CalculationResult, getTermLabel, getDiskonHargaLabel, KPR_MODE_LABELS } from "./kpr-calculator";
@@ -11,6 +11,44 @@ const MUTED: [number, number, number] = [105, 116, 137]; // dicerahkan dikit dar
 const INK: [number, number, number] = [30, 47, 82]; // dicerahkan dikit dari [22,35,61]
 const BORDER: [number, number, number] = [222, 222, 217];
 const ZEBRA: [number, number, number] = [247, 245, 240];
+
+/** Gambar manual "harga dicoret → harga setelah subsidi" + keterangan kecil di
+ * bawahnya, dipakai untuk sel tabel yang kena subsidi Angsuran OctoBoo! —
+ * autoTable/jsPDF tidak punya style strikethrough bawaan, jadi garis coretnya
+ * digambar langsung di atas teks harga asli. Dipanggil dari didDrawCell, SETELAH
+ * teks default sel itu dikosongkan (lihat didParseCell di wideTableCard). */
+function drawSubsidizedPriceCell(
+  doc: jsPDF,
+  cell: { x: number; y: number; width: number; height: number },
+  asliText: string,
+  setelahSubsidiText: string,
+  caption: string
+): void {
+  const rightEdge = cell.x + cell.width - 1.2;
+  const lineY = cell.y + cell.height * 0.42;
+  const captionY = cell.y + cell.height * 0.78;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.3);
+  doc.setTextColor(...INK);
+  doc.text(setelahSubsidiText, rightEdge, lineY, { align: "right" });
+  const diskonWidth = doc.getTextWidth(setelahSubsidiText);
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...MUTED);
+  const asliX = rightEdge - diskonWidth - 1.8;
+  doc.text(asliText, asliX, lineY, { align: "right" });
+  const asliWidth = doc.getTextWidth(asliText);
+  doc.setDrawColor(...MUTED);
+  doc.setLineWidth(0.25);
+  doc.line(asliX - asliWidth, lineY - 1.0, asliX, lineY - 1.0);
+
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(5.2);
+  doc.setTextColor(...MUTED);
+  doc.text(caption, rightEdge, captionY, { align: "right" });
+  doc.setTextColor(...INK);
+}
 
 async function loadLogoDataUrl(): Promise<string | null> {
   try {
@@ -109,8 +147,19 @@ export async function generateInvoicePdf(
     return endY + gap;
   }
 
-  /** Kartu lebar penuh berisi autoTable dengan header (dipakai utk tier/cash flow). */
-  function wideTableCard(title: string, startY: number, head: string[], body: string[][], rightAlignCols: number[]): number {
+  /** Kartu lebar penuh berisi autoTable dengan header (dipakai utk tier/cash flow).
+   * `subsidyByRow`, kalau diisi, menandai baris mana (berdasarkan index di `body`)
+   * yang kena subsidi Angsuran OctoBoo! — nilai asli & setelah subsidi digambar
+   * manual (coret + angka baru + keterangan kecil) di kolom terakhir, menggantikan
+   * teks biasa untuk baris itu. */
+  function wideTableCard(
+    title: string,
+    startY: number,
+    head: string[],
+    body: string[][],
+    rightAlignCols: number[],
+    subsidyByRow?: Record<number, { asli: number; setelahSubsidi: number; caption: string }>
+  ): number {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.setTextColor(...GOLD);
@@ -118,6 +167,7 @@ export async function generateInvoicePdf(
 
     const columnStyles: Record<number, { halign: "right" }> = {};
     rightAlignCols.forEach((c) => (columnStyles[c] = { halign: "right" }));
+    const subsidyCol = head.length - 1;
 
     autoTable(doc, {
       startY: startY + 6,
@@ -128,6 +178,20 @@ export async function generateInvoicePdf(
       headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold", fontSize: 7 },
       columnStyles,
       alternateRowStyles: { fillColor: ZEBRA },
+      didParseCell: (data: CellHookData) => {
+        if (!subsidyByRow) return;
+        if (data.section === "body" && data.column.index === subsidyCol && subsidyByRow[data.row.index]) {
+          data.cell.text = [];
+          data.cell.styles.minCellHeight = 7.4;
+        }
+      },
+      didDrawCell: (data: CellHookData) => {
+        if (!subsidyByRow) return;
+        const sub = data.section === "body" ? subsidyByRow[data.row.index] : undefined;
+        if (sub && data.column.index === subsidyCol) {
+          drawSubsidizedPriceCell(doc, data.cell, formatRupiah(sub.asli), formatRupiah(sub.setelahSubsidi), sub.caption);
+        }
+      },
     });
     const endY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 2;
     doc.setDrawColor(...BORDER);
@@ -203,17 +267,24 @@ export async function generateInvoicePdf(
       y = 12;
     }
     const head = ["Tahun", "Suku Bunga", "Angsuran/bln"];
-    const body = result.tierDisplayRows.map((row) => [
-      row.labelBulan
-        ? `Bulan ${row.bulanMulai}${row.bulanSelesai > row.bulanMulai ? `–${row.bulanSelesai}` : ""}`
-        : `${row.tahunMulai}${row.tahunSelesai > row.tahunMulai ? `–${row.tahunSelesai}` : ""}`,
-      formatPercent(row.sukuBunga),
-      formatRupiah(
-        row.disubsidi && result.subsidiAngsuranNominal > 0
-          ? Math.max(0, row.angsuranBulanan - result.subsidiAngsuranNominal)
-          : row.angsuranBulanan
-      ),
-    ]);
+    const subsidyCaption = `Subsidi ${formatRupiah(result.subsidiAngsuranNominal)}/${result.subsidiAngsuranBulan} bln`;
+    const tier5Subsidy: Record<number, { asli: number; setelahSubsidi: number; caption: string }> = {};
+    const body = result.tierDisplayRows.map((row, i) => {
+      if (row.disubsidi && result.subsidiAngsuranNominal > 0) {
+        tier5Subsidy[i] = {
+          asli: row.angsuranBulanan,
+          setelahSubsidi: Math.max(0, row.angsuranBulanan - result.subsidiAngsuranNominal),
+          caption: subsidyCaption,
+        };
+      }
+      return [
+        row.labelBulan
+          ? `Bulan ${row.bulanMulai}${row.bulanSelesai > row.bulanMulai ? `–${row.bulanSelesai}` : ""}`
+          : `${row.tahunMulai}${row.tahunSelesai > row.tahunMulai ? `–${row.tahunSelesai}` : ""}`,
+        formatPercent(row.sukuBunga),
+        formatRupiah(row.angsuranBulanan),
+      ];
+    });
     if (result.floatingTail) {
       const ft = result.floatingTail;
       body.push([
@@ -227,7 +298,8 @@ export async function generateInvoicePdf(
       y,
       head,
       body,
-      [2]
+      [2],
+      tier5Subsidy
     );
   }
 
@@ -236,12 +308,20 @@ export async function generateInvoicePdf(
     doc.addPage();
     y = 12;
   }
+  const cashFlowSubsidyCaption = `Subsidi ${formatRupiah(result.subsidiAngsuranNominal)}/${result.subsidiAngsuranBulan} bln`;
+  const cashFlowSubsidy: Record<number, { asli: number; setelahSubsidi: number; caption: string }> = {};
+  result.cashFlow.forEach((m, i) => {
+    if (m.disubsidi && m.nominalSetelahSubsidi !== undefined) {
+      cashFlowSubsidy[i] = { asli: m.nominal, setelahSubsidi: m.nominalSetelahSubsidi, caption: cashFlowSubsidyCaption };
+    }
+  });
   y = wideTableCard(
     "6. Ringkasan Cash Flow",
     y,
     ["Waktu", "Keterangan", "Nominal"],
     result.cashFlow.map((m) => [m.hari, m.keterangan, m.nominal > 0 ? formatRupiah(m.nominal) : "—"]),
-    [2]
+    [2],
+    cashFlowSubsidy
   );
 
   // ---- Syarat & Ketentuan (2 kolom) + info pembayaran ----
