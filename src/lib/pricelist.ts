@@ -23,8 +23,8 @@ export interface PropertyUnit {
   // Promo "OctoBoo!" (Oktober 2026 saja, lihat isOctoBooPromoActive di
   // kpr-calculator.ts): nominal flat yang MENGGANTIKAN hasil hitung Diskon PPN
   // DTP/Harga untuk unit ini selama bulan promo — berlaku di Hard Cash, Tunai
-  // Bertahap, dan KPR sekaligus. Unit yang tidak diisi field ini (mis. GWEN
-  // HOOK, NEW GWEN HOOK) tetap pakai rumus normal walau promo aktif.
+  // Bertahap, dan KPR sekaligus. Unit yang tidak diisi field ini tetap pakai
+  // rumus normal walau promo aktif.
   promoOctoBooDiskonHarga?: number;
 }
 
@@ -34,11 +34,9 @@ export const MONTANA_UNITS: PropertyUnit[] = [
   { id: "montana-newgwen-f3", cluster: "MONTANA", tipe: "NEW GWEN", lb: 42, lt: 72, blok: "F3", noUnit: "01-08", hargaAsli: 680_000_000, hargaKpr: 631_000_000, promoOctoBooDiskonHarga: 35_000_000 },
   { id: "montana-newgwen-f5", cluster: "MONTANA", tipe: "NEW GWEN", lb: 42, lt: 72, blok: "F5", noUnit: "02-07", hargaAsli: 680_000_000, hargaKpr: 631_000_000, promoOctoBooDiskonHarga: 35_000_000 },
   { id: "montana-darlene-f1", cluster: "MONTANA", tipe: "DARLENE", lb: 45, lt: 91, blok: "F1", noUnit: "05", hargaAsli: 795_000_000, hargaKpr: 735_000_000, promoOctoBooDiskonHarga: 45_000_000 },
-  // GWEN HOOK & NEW GWEN HOOK tidak termasuk promo OctoBoo! — tetap pakai rumus
-  // Diskon PPN DTP normal walau bulan promo aktif.
-  { id: "montana-gwenhook-f15", cluster: "MONTANA", tipe: "GWEN HOOK", lb: 38, lt: 106, blok: "F15", noUnit: "08", hargaAsli: 800_000_000, hargaKpr: 739_000_000, specialUnit: true, roundPpnDtp: true },
-  { id: "montana-gwenhook-f9-01", cluster: "MONTANA", tipe: "GWEN HOOK", lb: 38, lt: 106, blok: "F9-01", noUnit: "01", hargaAsli: 815_000_000, hargaKpr: 753_000_000, specialUnit: true },
-  { id: "montana-newgwenhook-f5-08", cluster: "MONTANA", tipe: "NEW GWEN HOOK", lb: 45, lt: 112, blok: "F5-8", noUnit: "08", hargaAsli: 885_000_000, hargaKpr: 816_000_000, specialUnit: true, roundPpnDtp: true },
+  { id: "montana-gwenhook-f15", cluster: "MONTANA", tipe: "GWEN HOOK", lb: 38, lt: 106, blok: "F15", noUnit: "08", hargaAsli: 800_000_000, hargaKpr: 739_000_000, specialUnit: true, roundPpnDtp: true, promoOctoBooDiskonHarga: 50_000_000 },
+  { id: "montana-gwenhook-f9-01", cluster: "MONTANA", tipe: "GWEN HOOK", lb: 38, lt: 106, blok: "F9-01", noUnit: "01", hargaAsli: 815_000_000, hargaKpr: 753_000_000, specialUnit: true, promoOctoBooDiskonHarga: 50_000_000 },
+  { id: "montana-newgwenhook-f5-08", cluster: "MONTANA", tipe: "NEW GWEN HOOK", lb: 45, lt: 112, blok: "F5-8", noUnit: "08", hargaAsli: 885_000_000, hargaKpr: 816_000_000, specialUnit: true, roundPpnDtp: true, promoOctoBooDiskonHarga: 55_000_000 },
 ];
 
 export const SIERRA_UNITS: PropertyUnit[] = [

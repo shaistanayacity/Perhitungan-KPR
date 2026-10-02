@@ -248,8 +248,19 @@ export default function ResultsPanel({
                   </span>
                 </span>
                 {m.nominal > 0 && (
-                  <span className="text-sm font-semibold tabular-nums text-foreground">
-                    {formatRupiah(m.nominal)}
+                  <span className="text-right">
+                    <span className="block text-sm font-semibold tabular-nums text-foreground">
+                      {m.disubsidi && m.nominalSetelahSubsidi !== undefined ? (
+                        <HargaSubsidi asli={m.nominal} setelahSubsidi={m.nominalSetelahSubsidi} />
+                      ) : (
+                        formatRupiah(m.nominal)
+                      )}
+                    </span>
+                    {m.disubsidi && (
+                      <span className="block text-[10px] text-success">
+                        Subsidi {formatRupiah(result.subsidiAngsuranNominal)}/{result.subsidiAngsuranBulan} bln
+                      </span>
+                    )}
                   </span>
                 )}
               </li>
