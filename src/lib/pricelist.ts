@@ -57,8 +57,8 @@ export const SIERRA_UNITS: PropertyUnit[] = [
   // penambahan private pool Rp170.000.000.
   { id: "sierra-arnica-garden-hook-e8-10", cluster: "SIERRA", tipe: "ARNICA Garden Hook", lb: 82, lt: 105.3, blok: "E8-10", noUnit: "10", hargaAsli: 1_155_000_000, hargaKpr: 1_061_000_000, specialUnit: true, promoOctoBooDiskonHarga: 80_000_000 },
   { id: "sierra-arnica-garden-hook-e1-06", cluster: "SIERRA", tipe: "ARNICA Garden Hook", lb: 70, lt: 160, blok: "E1-6", noUnit: "06", hargaAsli: 1_350_000_000, hargaKpr: 1_237_000_000, specialUnit: true, promoOctoBooDiskonHarga: 100_000_000 },
-  { id: "sierra-arnica-pool-hook-e8-10", cluster: "SIERRA", tipe: "ARNICA Pool Hook", lb: 91, lt: 105.3, blok: "E8-10", noUnit: "10", hargaAsli: 1_325_000_000, hargaKpr: 1_231_000_000, specialUnit: true, promoOctoBooDiskonHarga: 95_000_000 },
-  { id: "sierra-arnica-pool-hook-e1-06", cluster: "SIERRA", tipe: "ARNICA Pool Hook", lb: 91, lt: 160, blok: "E1-6", noUnit: "06", hargaAsli: 1_520_000_000, hargaKpr: 1_407_000_000, specialUnit: true, promoOctoBooDiskonHarga: 115_000_000 },
+  { id: "sierra-arnica-pool-hook-e8-10", cluster: "SIERRA", tipe: "ARNICA Pool Hook", lb: 91, lt: 105.3, blok: "E8-10", noUnit: "10", hargaAsli: 1_325_000_000, hargaKpr: 1_231_000_000, specialUnit: true, promoOctoBooDiskonHarga: 85_000_000 },
+  { id: "sierra-arnica-pool-hook-e1-06", cluster: "SIERRA", tipe: "ARNICA Pool Hook", lb: 91, lt: 160, blok: "E1-6", noUnit: "06", hargaAsli: 1_520_000_000, hargaKpr: 1_407_000_000, specialUnit: true, promoOctoBooDiskonHarga: 80_000_000 },
 ];
 
 export const ALL_UNITS: PropertyUnit[] = [...MONTANA_UNITS, ...SIERRA_UNITS];
