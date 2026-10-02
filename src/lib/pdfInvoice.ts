@@ -2,15 +2,30 @@ import jsPDF from "jspdf";
 import autoTable, { CellHookData } from "jspdf-autotable";
 import { FormState } from "./formReducer";
 import { PropertyUnit, TERMS_AND_CONDITIONS, BANK_ACCOUNT, COMPANY_INFO } from "./pricelist";
-import { CalculationResult, getTermLabel, getDiskonHargaLabel, KPR_MODE_LABELS } from "./kpr-calculator";
+import { CalculationResult, getTermLabel, getDiskonHargaLabel, KPR_MODE_LABELS, isOctoBooPromoActive } from "./kpr-calculator";
 import { formatRupiah, formatPercent, formatDateID, slugifyFileSegment } from "./format";
 
-const NAVY: [number, number, number] = [20, 41, 82]; // biru navy, dicerahkan dikit dari [15,30,61]
-const GOLD: [number, number, number] = [183, 145, 63];
-const MUTED: [number, number, number] = [105, 116, 137]; // dicerahkan dikit dari [91,101,119]
-const INK: [number, number, number] = [30, 47, 82]; // dicerahkan dikit dari [22,35,61]
-const BORDER: [number, number, number] = [222, 222, 217];
-const ZEBRA: [number, number, number] = [247, 245, 240];
+type RGB = [number, number, number];
+
+// Palet normal (dipakai di luar bulan promo OctoBoo!).
+const DEFAULT_NAVY: RGB = [20, 41, 82]; // biru navy, dicerahkan dikit dari [15,30,61]
+const DEFAULT_GOLD: RGB = [183, 145, 63];
+const DEFAULT_MUTED: RGB = [105, 116, 137]; // dicerahkan dikit dari [91,101,119]
+const DEFAULT_INK: RGB = [30, 47, 82]; // dicerahkan dikit dari [22,35,61]
+const DEFAULT_BORDER: RGB = [222, 222, 217];
+const DEFAULT_ZEBRA: RGB = [247, 245, 240];
+
+// Palet edisi "OctoBoo!" — cuma dipakai selama promo aktif (lihat isOctoBooPromoActive
+// di kpr-calculator.ts). Dipasangkan dengan gambar bingkai Halloween full-bleed
+// (public/invoice-octoboo-frame.png, sudah ada logo & ilustrasi di bagian atas/bawah
+// halaman) — jadi header/footer band navy bawaan TIDAK digambar lagi saat tema ini aktif.
+const HALLOWEEN_INK: RGB = [43, 33, 24];
+const HALLOWEEN_ACCENT: RGB = [200, 101, 28]; // oranye labu, menggantikan GOLD
+const HALLOWEEN_MUTED: RGB = [138, 122, 99];
+const HALLOWEEN_BORDER: RGB = [227, 179, 107];
+const HALLOWEEN_ZEBRA: RGB = [251, 239, 217];
+const HALLOWEEN_TABLE_HEAD_BG: RGB = [250, 240, 217];
+const HALLOWEEN_TABLE_HEAD_TEXT: RGB = [43, 33, 24];
 
 /** Gambar manual "harga dicoret → harga setelah subsidi" + keterangan kecil di
  * bawahnya, dipakai untuk sel tabel yang kena subsidi Angsuran OctoBoo! —
@@ -22,7 +37,9 @@ function drawSubsidizedPriceCell(
   cell: { x: number; y: number; width: number; height: number },
   asliText: string,
   setelahSubsidiText: string,
-  caption: string
+  caption: string,
+  ink: RGB,
+  muted: RGB
 ): void {
   const rightEdge = cell.x + cell.width - 1.2;
   const lineY = cell.y + cell.height * 0.42;
@@ -30,29 +47,29 @@ function drawSubsidizedPriceCell(
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.3);
-  doc.setTextColor(...INK);
+  doc.setTextColor(...ink);
   doc.text(setelahSubsidiText, rightEdge, lineY, { align: "right" });
   const diskonWidth = doc.getTextWidth(setelahSubsidiText);
 
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(...MUTED);
+  doc.setTextColor(...muted);
   const asliX = rightEdge - diskonWidth - 1.8;
   doc.text(asliText, asliX, lineY, { align: "right" });
   const asliWidth = doc.getTextWidth(asliText);
-  doc.setDrawColor(...MUTED);
+  doc.setDrawColor(...muted);
   doc.setLineWidth(0.25);
   doc.line(asliX - asliWidth, lineY - 1.0, asliX, lineY - 1.0);
 
   doc.setFont("helvetica", "italic");
   doc.setFontSize(5.2);
-  doc.setTextColor(...MUTED);
+  doc.setTextColor(...muted);
   doc.text(caption, rightEdge, captionY, { align: "right" });
-  doc.setTextColor(...INK);
+  doc.setTextColor(...ink);
 }
 
-async function loadLogoDataUrl(): Promise<string | null> {
+async function loadImageDataUrl(path: string): Promise<string | null> {
   try {
-    const res = await fetch("/logo-flame.png");
+    const res = await fetch(path);
     const blob = await res.blob();
     return await new Promise((resolve) => {
       const reader = new FileReader();
@@ -77,36 +94,79 @@ export async function generateInvoicePdf(
 ): Promise<jsPDF> {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 12;
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Tema "OctoBoo!" cuma aktif kalau promonya sendiri aktif (Oktober 2026) — di luar
+  // itu invoice balik ke desain navy/emas biasa secara otomatis, tanpa perlu saklar manual.
+  const themed = isOctoBooPromoActive();
+  const NAVY = themed ? HALLOWEEN_INK : DEFAULT_NAVY;
+  const GOLD = themed ? HALLOWEEN_ACCENT : DEFAULT_GOLD;
+  const MUTED = themed ? HALLOWEEN_MUTED : DEFAULT_MUTED;
+  const INK = themed ? HALLOWEEN_INK : DEFAULT_INK;
+  const BORDER = themed ? HALLOWEEN_BORDER : DEFAULT_BORDER;
+  const ZEBRA = themed ? HALLOWEEN_ZEBRA : DEFAULT_ZEBRA;
+  const TABLE_HEAD_BG = themed ? HALLOWEEN_TABLE_HEAD_BG : DEFAULT_NAVY;
+  const TABLE_HEAD_TEXT = themed ? HALLOWEEN_TABLE_HEAD_TEXT : ([255, 255, 255] as RGB);
+
+  // Margin & titik mulai konten disesuaikan kalau tema aktif, supaya konten tidak
+  // menabrak ilustrasi bingkai (banner atas & rumah hantu bawah) — bingkainya sendiri
+  // adalah gambar full-bleed (public/invoice-octoboo-frame.png), bukan digambar manual.
+  const margin = themed ? 16 : 12;
+  const contentStartY = themed ? 80 : 31;
+  const newPageY = themed ? 80 : 12;
+  const sec5Threshold = themed ? 195 : 210;
+  const sec6Threshold = themed ? 220 : 235;
+  const tncPageBottom = themed ? pageHeight - 40 : pageHeight - 12;
+
   const gap = 3.5;
   const colWidth = (pageWidth - margin * 2 - gap) / 2;
   const leftX = margin;
   const rightX = margin + colWidth + gap;
   let y = 0;
 
-  // ---- Header band ----
-  doc.setFillColor(...NAVY);
-  doc.rect(0, 0, pageWidth, 26, "F");
-
-  const logo = await loadLogoDataUrl();
-  if (logo) {
-    doc.addImage(logo, "PNG", margin, 4, 9.5, 15.4);
+  async function drawOctoBooFrame(): Promise<void> {
+    const frame = await loadImageDataUrl("/invoice-octoboo-frame.png");
+    if (frame) {
+      doc.addImage(frame, "PNG", 0, 0, pageWidth, pageHeight);
+    }
   }
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("times", "bold");
-  doc.setFontSize(13);
-  doc.text("SHAISTANAYA CITY", margin + (logo ? 13 : 0), 12);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...GOLD);
-  doc.text("INVOICE SIMULASI", margin + (logo ? 13 : 0), 17.2);
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
-  doc.text(`Tanggal Invoice: ${formatDateID()}`, pageWidth - margin, 12, { align: "right" });
-  doc.text(`Cluster ${unit.cluster}`, pageWidth - margin, 17.2, { align: "right" });
+  if (themed) {
+    await drawOctoBooFrame();
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    doc.text(
+      `Invoice Simulasi · ${formatDateID()} · Cluster ${unit.cluster}`,
+      pageWidth / 2,
+      contentStartY - 6,
+      { align: "center" }
+    );
+  } else {
+    // ---- Header band (desain normal, non-promo) ----
+    doc.setFillColor(...NAVY);
+    doc.rect(0, 0, pageWidth, 26, "F");
 
-  y = 31;
+    const logo = await loadImageDataUrl("/logo-flame.png");
+    if (logo) {
+      doc.addImage(logo, "PNG", margin, 4, 9.5, 15.4);
+    }
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("times", "bold");
+    doc.setFontSize(13);
+    doc.text("SHAISTANAYA CITY", margin + (logo ? 13 : 0), 12);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...GOLD);
+    doc.text("INVOICE SIMULASI", margin + (logo ? 13 : 0), 17.2);
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.text(`Tanggal Invoice: ${formatDateID()}`, pageWidth - margin, 12, { align: "right" });
+    doc.text(`Cluster ${unit.cluster}`, pageWidth - margin, 17.2, { align: "right" });
+  }
+
+  y = contentStartY;
 
   /** Kartu berbingkai (kotak) berisi tabel key-value ringkas + catatan kaki opsional.
    * Mengembalikan koordinat Y bawah kartu, supaya kartu di sebelahnya (kolom lain)
@@ -175,7 +235,7 @@ export async function generateInvoicePdf(
       head: [head],
       body,
       styles: { fontSize: 7.3, textColor: INK, cellPadding: 0.9 },
-      headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold", fontSize: 7 },
+      headStyles: { fillColor: TABLE_HEAD_BG, textColor: TABLE_HEAD_TEXT, fontStyle: "bold", fontSize: 7 },
       columnStyles,
       alternateRowStyles: { fillColor: ZEBRA },
       didParseCell: (data: CellHookData) => {
@@ -189,7 +249,7 @@ export async function generateInvoicePdf(
         if (!subsidyByRow) return;
         const sub = data.section === "body" ? subsidyByRow[data.row.index] : undefined;
         if (sub && data.column.index === subsidyCol) {
-          drawSubsidizedPriceCell(doc, data.cell, formatRupiah(sub.asli), formatRupiah(sub.setelahSubsidi), sub.caption);
+          drawSubsidizedPriceCell(doc, data.cell, formatRupiah(sub.asli), formatRupiah(sub.setelahSubsidi), sub.caption, INK, MUTED);
         }
       },
     });
@@ -262,9 +322,10 @@ export async function generateInvoicePdf(
 
   // ---- Section 5: KPR Breakdown ----
   if (result.pokokKpr !== null && result.tierDisplayRows) {
-    if (y > 210) {
+    if (y > sec5Threshold) {
       doc.addPage();
-      y = 12;
+      if (themed) await drawOctoBooFrame();
+      y = newPageY;
     }
     const head = ["Tahun", "Suku Bunga", "Angsuran/bln"];
     const subsidyCaption = `Subsidi ${formatRupiah(result.subsidiAngsuranNominal)}/${result.subsidiAngsuranBulan} bln`;
@@ -304,9 +365,10 @@ export async function generateInvoicePdf(
   }
 
   // ---- Section 6: Cash Flow ----
-  if (y > 235) {
+  if (y > sec6Threshold) {
     doc.addPage();
-    y = 12;
+    if (themed) await drawOctoBooFrame();
+    y = newPageY;
   }
   const cashFlowSubsidyCaption = `Subsidi ${formatRupiah(result.subsidiAngsuranNominal)}/${result.subsidiAngsuranBulan} bln`;
   const cashFlowSubsidy: Record<number, { asli: number; setelahSubsidi: number; caption: string }> = {};
@@ -349,10 +411,10 @@ export async function generateInvoicePdf(
   // sebelum menggambar, supaya keputusan pindah halaman akurat — bukan tebakan.
   const estTcHeight =
     8.5 + Math.max(bulletHeight(colA), bulletHeight(colB)) + 2.2 + 3.4 + 2.9 + 3.4 + catatanLines.length * 2.7 + 4;
-  const pageBottom = doc.internal.pageSize.getHeight() - 12;
-  if (y + estTcHeight > pageBottom) {
+  if (y + estTcHeight > tncPageBottom) {
     doc.addPage();
-    y = 12;
+    if (themed) await drawOctoBooFrame();
+    y = newPageY;
   }
 
   doc.setFont("helvetica", "bold");
@@ -401,11 +463,12 @@ export async function generateInvoicePdf(
 
   // ---- Footer page numbers ----
   const pageCount = doc.getNumberOfPages();
+  const pageNumY = themed ? pageHeight - 46 : pageHeight - 7;
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(7);
     doc.setTextColor(...MUTED);
-    doc.text(`Halaman ${i} dari ${pageCount}`, pageWidth - margin, doc.internal.pageSize.getHeight() - 7, {
+    doc.text(`Halaman ${i} dari ${pageCount}`, pageWidth - margin, pageNumY, {
       align: "right",
     });
   }
