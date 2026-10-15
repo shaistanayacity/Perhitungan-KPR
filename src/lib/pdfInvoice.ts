@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable, { CellHookData } from "jspdf-autotable";
 import { FormState } from "./formReducer";
-import { PropertyUnit, TERMS_AND_CONDITIONS, BANK_ACCOUNT, COMPANY_INFO } from "./pricelist";
+import { PropertyUnit, TERMS_AND_CONDITIONS, BANK_ACCOUNT, BANK_PARTNERS, COMPANY_INFO } from "./pricelist";
 import { CalculationResult, getTermLabel, getDiskonHargaLabel, KPR_MODE_LABELS, isOctoBooPromoActive } from "./kpr-calculator";
 import { formatRupiah, formatPercent, formatDateID, slugifyFileSegment } from "./format";
 
@@ -415,10 +415,24 @@ export async function generateInvoicePdf(
     return h;
   }
   const catatanLines = doc.splitTextToSize(catatanText, pageWidth - margin * 2 - 6);
+  // Logo bank KPR cuma ditampilkan kalau term-nya KPR DAN bank-nya sudah dipilih
+  // di tab Term of Payment (state.bankKpr) — bukan daftar semua bank rekanan,
+  // supaya invoice jelas menunjukkan bank yang benar-benar dipakai pembeli ini.
+  const selectedBankPartner =
+    state.term === "KPR" ? BANK_PARTNERS.find((p) => p.nama === state.bankKpr) : undefined;
+  const bankLogoBlockHeight = selectedBankPartner ? s(11.7) : 0;
   // Ukur dulu tinggi total kartu S&K (bullets 2 kolom + info pembayaran + catatan)
   // sebelum menggambar, supaya keputusan pindah halaman akurat — bukan tebakan.
   const estTcHeight =
-    s(8.5) + Math.max(bulletHeight(colA), bulletHeight(colB)) + s(2.2) + s(3.4) + s(2.9) + s(3.4) + catatanLines.length * s(2.7) + s(4);
+    s(8.5) +
+    Math.max(bulletHeight(colA), bulletHeight(colB)) +
+    s(2.2) +
+    s(3.4) +
+    bankLogoBlockHeight + // label "Bank KPR:" + logo, kalau bank sudah dipilih
+    s(2.9) +
+    s(3.4) +
+    catatanLines.length * s(2.7) +
+    s(4);
   // Invoice bertema WAJIB 1 halaman — jangan pernah ganti halaman di sini.
   if (!themed && y + estTcHeight > pageHeight - 12) {
     doc.addPage();
@@ -455,6 +469,26 @@ export async function generateInvoicePdf(
     footY
   );
   footY += s(3.4);
+
+  // ---- Logo bank KPR yang dipilih pembeli (lihat tab Term of Payment) ----
+  if (selectedBankPartner) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(s(6.3));
+    doc.setTextColor(...MUTED);
+    doc.text(`Bank KPR: ${selectedBankPartner.nama}`, leftX + 3, footY);
+    footY += s(1.3);
+
+    const bankLogoHeight = s(6.5);
+    const bankLogoDataUrl = await loadImageDataUrl(selectedBankPartner.logo);
+    const bankLogoRowY = footY + s(1.5);
+    if (bankLogoDataUrl) {
+      const props = doc.getImageProperties(bankLogoDataUrl);
+      const bankLogoWidth = (bankLogoHeight * props.width) / props.height;
+      doc.addImage(bankLogoDataUrl, "PNG", leftX + 3, bankLogoRowY, bankLogoWidth, bankLogoHeight);
+    }
+    footY = bankLogoRowY + bankLogoHeight + s(2.4);
+  }
+
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...MUTED);
   doc.text(`Head Office: ${COMPANY_INFO.headOffice}`, leftX + 3, footY);
