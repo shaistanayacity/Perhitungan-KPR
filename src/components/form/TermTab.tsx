@@ -3,9 +3,9 @@
 import { Dispatch } from "react";
 import { FormState, FormAction } from "@/lib/formReducer";
 import { ValidationErrors } from "@/types/buyer";
-import { getUnitById } from "@/lib/pricelist";
+import { getUnitById, BANK_PARTNERS } from "@/lib/pricelist";
 import { TermOfPayment, KprMode, KPR_MODE_LABELS, hitungHargaSetelahDiskonKpr } from "@/lib/kpr-calculator";
-import { Field, RadioCard, TextInput } from "@/components/ui";
+import { Field, RadioCard, TextInput, Select } from "@/components/ui";
 import { formatRupiah } from "@/lib/format";
 import TierEditor from "./TierEditor";
 
@@ -98,6 +98,27 @@ export default function TermTab({
 
       {isKpr && (
         <>
+          <Field
+            label="Bank Pemberi KPR"
+            htmlFor="bankKpr"
+            hint="Logo bank ini akan ditampilkan di invoice — pilih sesuai bank yang dipakai pembeli"
+          >
+            <Select
+              id="bankKpr"
+              value={state.bankKpr ?? ""}
+              onChange={(e) =>
+                dispatch({ type: "SET_FIELD", field: "bankKpr", value: e.target.value || null })
+              }
+            >
+              <option value="">— Belum dipilih —</option>
+              {BANK_PARTNERS.map((bank) => (
+                <option key={bank.nama} value={bank.nama}>
+                  {bank.nama}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
           <div>
             <p className="mb-2 text-sm font-medium text-foreground">Jenis KPR</p>
             <div className="flex flex-col gap-2.5">

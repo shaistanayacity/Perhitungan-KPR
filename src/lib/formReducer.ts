@@ -20,6 +20,7 @@ export interface FormState {
   dpPercent: number;
   kprMode: KprMode;
   tiers: KprTierInput[];
+  bankKpr: string | null;
   activeTab: TabId;
 }
 
@@ -59,6 +60,7 @@ export const initialFormState: FormState = {
   dpPercent: 0,
   kprMode: "FIX",
   tiers: defaultTiers(DEFAULT_SUKU_BUNGA, 20),
+  bankKpr: null,
   activeTab: "profil",
 };
 

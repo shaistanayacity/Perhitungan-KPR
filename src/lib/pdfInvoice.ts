@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable, { CellHookData } from "jspdf-autotable";
 import { FormState } from "./formReducer";
-import { PropertyUnit, TERMS_AND_CONDITIONS, BANK_ACCOUNT, COMPANY_INFO } from "./pricelist";
+import { PropertyUnit, TERMS_AND_CONDITIONS, BANK_ACCOUNT, BANK_PARTNERS, COMPANY_INFO } from "./pricelist";
 import { CalculationResult, getTermLabel, getDiskonHargaLabel, KPR_MODE_LABELS, isOctoBooPromoActive } from "./kpr-calculator";
 import { formatRupiah, formatPercent, formatDateID, slugifyFileSegment } from "./format";
 
@@ -221,12 +221,25 @@ export async function generateInvoicePdf(
     head: string[],
     body: string[][],
     rightAlignCols: number[],
-    subsidyByRow?: Record<number, { asli: number; setelahSubsidi: number; caption: string }>
+    subsidyByRow?: Record<number, { asli: number; setelahSubsidi: number; caption: string }>,
+    headerLogo?: { dataUrl: string }
   ): number {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(s(8));
     doc.setTextColor(...GOLD);
     doc.text(title.toUpperCase(), margin + 3, startY + s(4.3));
+
+    // Logo bank KPR yang dipilih pembeli (tab Term of Payment) — ditampilkan di
+    // pojok kanan atas kartu KPR Breakdown, sejajar dengan judul kartu, supaya
+    // langsung terlihat bank mana yang dipakai begitu kartu ini dilihat.
+    if (headerLogo) {
+      const logoHeight = s(5);
+      const props = doc.getImageProperties(headerLogo.dataUrl);
+      const logoWidth = (logoHeight * props.width) / props.height;
+      const logoX = pageWidth - margin - 3 - logoWidth;
+      const logoY = startY + s(0.6);
+      doc.addImage(headerLogo.dataUrl, "PNG", logoX, logoY, logoWidth, logoHeight);
+    }
 
     const columnStyles: Record<number, { halign: "right" }> = {};
     rightAlignCols.forEach((c) => (columnStyles[c] = { halign: "right" }));
@@ -336,6 +349,11 @@ export async function generateInvoicePdf(
       doc.addPage();
       y = 12;
     }
+    // Logo bank KPR yang dipilih pembeli di tab Term of Payment — ditampilkan
+    // di pojok kartu KPR Breakdown ini (bukan di kartu lain) supaya langsung
+    // jelas bank mana yang dipakai begitu kartu simulasi KPR-nya dibaca.
+    const selectedBankPartner = BANK_PARTNERS.find((p) => p.nama === state.bankKpr);
+    const bankLogoDataUrl = selectedBankPartner ? await loadImageDataUrl(selectedBankPartner.logo) : null;
     const head = ["Tahun", "Suku Bunga", "Angsuran/bln"];
     const subsidyCaption = `Subsidi ${formatRupiah(result.subsidiAngsuranNominal)}/${result.subsidiAngsuranBulan} bln`;
     const tier5Subsidy: Record<number, { asli: number; setelahSubsidi: number; caption: string }> = {};
@@ -369,7 +387,8 @@ export async function generateInvoicePdf(
       head,
       body,
       [2],
-      tier5Subsidy
+      tier5Subsidy,
+      bankLogoDataUrl ? { dataUrl: bankLogoDataUrl } : undefined
     );
   }
 
@@ -418,7 +437,14 @@ export async function generateInvoicePdf(
   // Ukur dulu tinggi total kartu S&K (bullets 2 kolom + info pembayaran + catatan)
   // sebelum menggambar, supaya keputusan pindah halaman akurat — bukan tebakan.
   const estTcHeight =
-    s(8.5) + Math.max(bulletHeight(colA), bulletHeight(colB)) + s(2.2) + s(3.4) + s(2.9) + s(3.4) + catatanLines.length * s(2.7) + s(4);
+    s(8.5) +
+    Math.max(bulletHeight(colA), bulletHeight(colB)) +
+    s(2.2) +
+    s(3.4) +
+    s(2.9) +
+    s(3.4) +
+    catatanLines.length * s(2.7) +
+    s(4);
   // Invoice bertema WAJIB 1 halaman — jangan pernah ganti halaman di sini.
   if (!themed && y + estTcHeight > pageHeight - 12) {
     doc.addPage();
@@ -455,6 +481,7 @@ export async function generateInvoicePdf(
     footY
   );
   footY += s(3.4);
+
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...MUTED);
   doc.text(`Head Office: ${COMPANY_INFO.headOffice}`, leftX + 3, footY);

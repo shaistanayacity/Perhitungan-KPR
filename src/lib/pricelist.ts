@@ -108,6 +108,20 @@ export const BANK_ACCOUNT = {
   atasNama: "NEO PUDJI JAYA, PT",
 };
 
+// Bank rekanan KPR yang punya PKS (Perjanjian Kerja Sama) dengan Shaistanaya City —
+// ditampilkan sebagai logo di invoice supaya calon pembeli tahu bank apa saja yang
+// bisa dipakai untuk pengajuan KPR. Daftar ini terpisah dari BANK_ACCOUNT di atas,
+// yang merupakan rekening penerima developer sendiri untuk pembayaran UTJ/tunai.
+export const BANK_PARTNERS: { nama: string; logo: string }[] = [
+  { nama: "BSI", logo: "/bank-logos/bsi.png" },
+  { nama: "BNI", logo: "/bank-logos/bni.png" },
+  { nama: "BTN", logo: "/bank-logos/btn.png" },
+  { nama: "Bank Syariah Nasional", logo: "/bank-logos/bsn.png" },
+  { nama: "Bank DKI", logo: "/bank-logos/bank-dki.png" },
+  { nama: "BCA", logo: "/bank-logos/bca.png" },
+  { nama: "BRI", logo: "/bank-logos/bri.png" },
+];
+
 export const COMPANY_INFO = {
   name: "Shaistanaya City",
   headOffice: "Ruko Sun City Blok B-06/07, Jl. Pahlawan, Sidoarjo",
