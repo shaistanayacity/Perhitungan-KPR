@@ -2,12 +2,13 @@ import jsPDF from "jspdf";
 import autoTable, { CellHookData } from "jspdf-autotable";
 import { FormState } from "./formReducer";
 import { PropertyUnit, TERMS_AND_CONDITIONS, BANK_ACCOUNT, BANK_PARTNERS, COMPANY_INFO } from "./pricelist";
-import { CalculationResult, getTermLabel, getDiskonHargaLabel, KPR_MODE_LABELS, isOctoBooPromoActive } from "./kpr-calculator";
+import { CalculationResult, getTermLabel, getDiskonHargaLabel, KPR_MODE_LABELS, isOctoBooThemeActive } from "./kpr-calculator";
 import { formatRupiah, formatPercent, formatDateID, slugifyFileSegment } from "./format";
 
 type RGB = [number, number, number];
 
-// Palet normal (dipakai di luar bulan promo OctoBoo!).
+// Palet normal (dipakai di luar bulan tema OctoBoo! — termasuk November 2026,
+// saat promonya sendiri masih jalan tapi tanpa dekorasi Halloween).
 const DEFAULT_NAVY: RGB = [20, 41, 82]; // biru navy, dicerahkan dikit dari [15,30,61]
 const DEFAULT_GOLD: RGB = [183, 145, 63];
 const DEFAULT_MUTED: RGB = [105, 116, 137]; // dicerahkan dikit dari [91,101,119]
@@ -15,8 +16,8 @@ const DEFAULT_INK: RGB = [30, 47, 82]; // dicerahkan dikit dari [22,35,61]
 const DEFAULT_BORDER: RGB = [222, 222, 217];
 const DEFAULT_ZEBRA: RGB = [247, 245, 240];
 
-// Palet edisi "OctoBoo!" — cuma dipakai selama promo aktif (lihat isOctoBooPromoActive
-// di kpr-calculator.ts). Dipasangkan dengan gambar bingkai Halloween full-bleed
+// Palet edisi "OctoBoo!" — cuma dipakai selama tema aktif (Oktober 2026 saja,
+// lihat isOctoBooThemeActive di kpr-calculator.ts). Dipasangkan dengan gambar bingkai Halloween full-bleed
 // (public/invoice-octoboo-frame.png, sudah ada logo & ilustrasi di bagian atas/bawah
 // halaman) — jadi header/footer band navy bawaan TIDAK digambar lagi saat tema ini aktif.
 const HALLOWEEN_INK: RGB = [43, 33, 24];
@@ -97,9 +98,10 @@ export async function generateInvoicePdf(
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
-  // Tema "OctoBoo!" cuma aktif kalau promonya sendiri aktif (Oktober 2026) — di luar
-  // itu invoice balik ke desain navy/emas biasa secara otomatis, tanpa perlu saklar manual.
-  const themed = isOctoBooPromoActive();
+  // Tema "OctoBoo!" cuma aktif Oktober 2026 — di luar itu (termasuk November
+  // 2026, selama promo diskon/subsidinya masih diperpanjang) invoice balik ke
+  // desain navy/emas biasa secara otomatis, tanpa perlu saklar manual.
+  const themed = isOctoBooThemeActive();
   const NAVY = themed ? HALLOWEEN_INK : DEFAULT_NAVY;
   const GOLD = themed ? HALLOWEEN_ACCENT : DEFAULT_GOLD;
   const MUTED = themed ? HALLOWEEN_MUTED : DEFAULT_MUTED;
@@ -334,7 +336,7 @@ export async function generateInvoicePdf(
     ]);
   if (result.promoSubsidiAngsuranAktif)
     termRows.push([
-      "Promo OctoBOO!",
+      themed ? "Promo OctoBOO!" : "Promo Spesial",
       `Subsidi Angsuran ${formatRupiah(result.subsidiAngsuranNominal)} Selama ${result.subsidiAngsuranBulan} Bulan`,
     ]);
 

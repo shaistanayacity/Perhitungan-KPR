@@ -20,9 +20,9 @@ export interface PropertyUnit {
   // resmi memang dibulatkan ke TERDEKAT, set true di sini — pengecualian per
   // unit, bukan aturan global.
   roundPpnDtp?: boolean;
-  // Promo "OctoBoo!" (Oktober 2026 saja, lihat isOctoBooPromoActive di
+  // Promo "OctoBoo!" (Oktober–November 2026, lihat isPromoAktif di
   // kpr-calculator.ts): nominal flat yang MENGGANTIKAN hasil hitung Diskon PPN
-  // DTP/Harga untuk unit ini selama bulan promo — berlaku di Hard Cash, Tunai
+  // DTP/Harga untuk unit ini selama periode promo — berlaku di Hard Cash, Tunai
   // Bertahap, dan KPR sekaligus. Unit yang tidak diisi field ini tetap pakai
   // rumus normal walau promo aktif.
   promoOctoBooDiskonHarga?: number;

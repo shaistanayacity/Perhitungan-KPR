@@ -2,7 +2,13 @@
 
 import { FormState } from "@/lib/formReducer";
 import { PropertyUnit } from "@/lib/pricelist";
-import { CalculationResult, getTermLabel, getDiskonHargaLabel, KPR_MODE_LABELS } from "@/lib/kpr-calculator";
+import {
+  CalculationResult,
+  getTermLabel,
+  getDiskonHargaLabel,
+  KPR_MODE_LABELS,
+  isOctoBooThemeActive,
+} from "@/lib/kpr-calculator";
 import { formatRupiah, formatPercent } from "@/lib/format";
 import { SectionCard, StatRow, Pill, Button } from "@/components/ui";
 
@@ -68,7 +74,9 @@ export default function ResultsPanel({
           <div>
             <div className="flex flex-wrap items-center gap-1.5">
               <Pill tone="gold">{getTermLabel(state.term)}</Pill>
-              {result.promoSubsidiAngsuranAktif && <Pill tone="success">Promo OctoBOO!</Pill>}
+              {result.promoSubsidiAngsuranAktif && (
+                <Pill tone="success">{isOctoBooThemeActive() ? "Promo OctoBOO!" : "Promo Spesial"}</Pill>
+              )}
             </div>
             <p className="font-brand mt-2.5 text-2xl text-foreground">
               {unit.tipe} · {unit.cluster}

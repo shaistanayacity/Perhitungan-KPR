@@ -182,33 +182,51 @@ function hitungDiskonPpnDtp(hargaSetelahDiskonLain: number, roundPpnDtp = false)
   return Math.max(0, pembulatan(nilai / 1_000_000) * 1_000_000);
 }
 
-// ---- Promo "OctoBoo!" — khusus bulan Oktober 2026 ----
+// ---- Promo "OctoBoo!" ----
 // Rumus Diskon PPN DTP di atas TETAP ADA dan dipakai lagi otomatis begitu
 // promo berakhir (atau untuk unit yang tidak ikut promo) — tidak dihapus.
-const OCTOBOO_PROMO_TAHUN = 2026;
-const OCTOBOO_PROMO_BULAN = 9; // Oktober, 0-indexed (sesuai Date#getMonth())
+//
+// Tema visual (dekorasi Halloween full-bleed di invoice, lihat isOctoBooThemeActive
+// & pdfInvoice.ts) HANYA berlaku Oktober 2026. Diskon & subsidi angsurannya
+// sendiri (isPromoAktif) diperpanjang s.d. akhir November 2026 dengan
+// kesepakatan terbaru — bulan November pakai template invoice normal (tanpa
+// kesan OctoBoo!), promonya tetap sama persis.
+const OCTOBOO_THEME_TAHUN = 2026;
+const OCTOBOO_THEME_BULAN = 9; // Oktober, 0-indexed (sesuai Date#getMonth())
+const PROMO_TAHUN = 2026;
+const PROMO_BULAN_MULAI = 9; // Oktober
+const PROMO_BULAN_SELESAI = 10; // November
 const OCTOBOO_SUBSIDI_ANGSURAN_NOMINAL = 1_000_000;
 const OCTOBOO_SUBSIDI_ANGSURAN_BULAN = 6;
 
-export function isOctoBooPromoActive(date: Date = new Date()): boolean {
-  return date.getFullYear() === OCTOBOO_PROMO_TAHUN && date.getMonth() === OCTOBOO_PROMO_BULAN;
+/** Tema visual Halloween (bingkai full-bleed, palet oranye) — HANYA Oktober 2026.
+ * Jangan dipakai untuk logic diskon/subsidi, pakai isPromoAktif untuk itu. */
+export function isOctoBooThemeActive(date: Date = new Date()): boolean {
+  return date.getFullYear() === OCTOBOO_THEME_TAHUN && date.getMonth() === OCTOBOO_THEME_BULAN;
 }
 
-/** Label baris diskon di hasil/invoice — "Diskon Harga" selama promo OctoBoo!
- * aktif (menggantikan "Diskon PPN DTP"), berlaku untuk SEMUA unit di bulan itu
+/** Diskon & subsidi angsuran promo "OctoBoo!" — aktif Oktober s.d. November
+ * 2026. Terpisah dari isOctoBooThemeActive karena promonya diperpanjang 1
+ * bulan tanpa tema Halloween-nya. */
+export function isPromoAktif(date: Date = new Date()): boolean {
+  return date.getFullYear() === PROMO_TAHUN && date.getMonth() >= PROMO_BULAN_MULAI && date.getMonth() <= PROMO_BULAN_SELESAI;
+}
+
+/** Label baris diskon di hasil/invoice — "Diskon Harga" selama promo aktif
+ * (menggantikan "Diskon PPN DTP"), berlaku untuk SEMUA unit di periode itu
  * biar konsisten, walau nominalnya sendiri cuma di-override untuk unit yang
  * ikut promo (lihat hitungDiskonHarga). */
 export function getDiskonHargaLabel(date: Date = new Date()): string {
-  return isOctoBooPromoActive(date) ? "Diskon Harga" : "Diskon PPN DTP";
+  return isPromoAktif(date) ? "Diskon Harga" : "Diskon PPN DTP";
 }
 
-/** Diskon PPN DTP / Diskon Harga — selama promo OctoBoo! aktif DAN unit ini
- * ikut promo (unit.promoOctoBooDiskonHarga terisi), nominalnya flat dari
- * pricelist, menggantikan rumus di atas sepenuhnya (berlaku sama di Hard Cash,
- * Tunai Bertahap, maupun KPR). Unit yang tidak ikut promo tetap pakai
+/** Diskon PPN DTP / Diskon Harga — selama promo aktif DAN unit ini ikut promo
+ * (unit.promoOctoBooDiskonHarga terisi), nominalnya flat dari pricelist,
+ * menggantikan rumus di atas sepenuhnya (berlaku sama di Hard Cash, Tunai
+ * Bertahap, maupun KPR). Unit yang tidak ikut promo tetap pakai
  * hitungDiskonPpnDtp seperti biasa. */
 function hitungDiskonHarga(unit: PropertyUnit, hargaSetelahDiskonLain: number): number {
-  if (isOctoBooPromoActive() && unit.promoOctoBooDiskonHarga !== undefined) {
+  if (isPromoAktif() && unit.promoOctoBooDiskonHarga !== undefined) {
     return unit.promoOctoBooDiskonHarga;
   }
   return hitungDiskonPpnDtp(hargaSetelahDiskonLain, unit.roundPpnDtp);
@@ -360,7 +378,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
     // memperhitungkan diskon & UTJ).
     const cicilanBulanan = hargaJual / tenorBulan;
     const angsuranTerakhir = sisaPelunasan - cicilanBulanan * (tenorBulan - 1);
-    const promoSubsidiAngsuranAktifTb = isOctoBooPromoActive();
+    const promoSubsidiAngsuranAktifTb = isPromoAktif();
     const subsidiBulanTb = promoSubsidiAngsuranAktifTb ? OCTOBOO_SUBSIDI_ANGSURAN_BULAN : 0;
 
     // Baris cash flow dirangkum jadi rentang (mis. "Angsuran ke-1 s/d ke-5" + pelunasan)
@@ -443,7 +461,7 @@ export function calculateSimulation(input: CalculatorInput): CalculationResult {
   const tiers = input.tiers && input.tiers.length > 0 ? input.tiers : defaultTiers;
   const { tierBreakdown, floatingTail } = hitungTierBunga(pokokKpr, tenorTahun, tiers);
   const angsuranAwal = tierBreakdown[0]?.angsuranBulanan ?? 0;
-  const promoSubsidiAngsuranAktifKpr = isOctoBooPromoActive();
+  const promoSubsidiAngsuranAktifKpr = isPromoAktif();
   const tierDisplayRows = buildKprDisplayRows(
     tierBreakdown,
     promoSubsidiAngsuranAktifKpr ? OCTOBOO_SUBSIDI_ANGSURAN_BULAN : 0
