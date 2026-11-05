@@ -217,7 +217,6 @@ const ENDOFYEAR_THEME_BULAN = 11; // Desember, 0-indexed
 export function isEndOfYearThemeActive(date: Date = new Date()): boolean {
   return date.getFullYear() === ENDOFYEAR_THEME_TAHUN && date.getMonth() === ENDOFYEAR_THEME_BULAN;
 }
-
 /** Diskon & subsidi angsuran promo "OctoBoo!" — aktif Oktober s.d. November
  * 2026. Terpisah dari isOctoBooThemeActive karena promonya diperpanjang 1
  * bulan tanpa tema Halloween-nya. */
