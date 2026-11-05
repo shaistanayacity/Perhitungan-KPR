@@ -205,6 +205,19 @@ export function isOctoBooThemeActive(date: Date = new Date()): boolean {
   return date.getFullYear() === OCTOBOO_THEME_TAHUN && date.getMonth() === OCTOBOO_THEME_BULAN;
 }
 
+// ---- Tema "End of Year" — HANYA Desember 2026 ----
+// Murni ganti tampilan (bingkai full-bleed bendera/balon ulang tahun, lihat
+// public/invoice-endofyear-frame.png) — TIDAK ada diskon/subsidi tambahan.
+// Promo OctoBoo! sendiri sudah berhenti akhir November 2026 (lihat isPromoAktif),
+// jadi invoice Desember tetap pakai harga & Diskon PPN DTP normal, cuma
+// bingkainya yang berganti.
+const ENDOFYEAR_THEME_TAHUN = 2026;
+const ENDOFYEAR_THEME_BULAN = 11; // Desember, 0-indexed
+
+export function isEndOfYearThemeActive(date: Date = new Date()): boolean {
+  return date.getFullYear() === ENDOFYEAR_THEME_TAHUN && date.getMonth() === ENDOFYEAR_THEME_BULAN;
+}
+
 /** Diskon & subsidi angsuran promo "OctoBoo!" — aktif Oktober s.d. November
  * 2026. Terpisah dari isOctoBooThemeActive karena promonya diperpanjang 1
  * bulan tanpa tema Halloween-nya. */
