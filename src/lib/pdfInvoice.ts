@@ -2,7 +2,14 @@ import jsPDF from "jspdf";
 import autoTable, { CellHookData } from "jspdf-autotable";
 import { FormState } from "./formReducer";
 import { PropertyUnit, TERMS_AND_CONDITIONS, BANK_ACCOUNT, BANK_PARTNERS, COMPANY_INFO } from "./pricelist";
-import { CalculationResult, getTermLabel, getDiskonHargaLabel, KPR_MODE_LABELS, isOctoBooThemeActive } from "./kpr-calculator";
+import {
+  CalculationResult,
+  getTermLabel,
+  getDiskonHargaLabel,
+  KPR_MODE_LABELS,
+  isOctoBooThemeActive,
+  isEndOfYearThemeActive,
+} from "./kpr-calculator";
 import { formatRupiah, formatPercent, formatDateID, slugifyFileSegment } from "./format";
 
 type RGB = [number, number, number];
@@ -27,6 +34,14 @@ const HALLOWEEN_BORDER: RGB = [227, 179, 107];
 const HALLOWEEN_ZEBRA: RGB = [251, 239, 217];
 const HALLOWEEN_TABLE_HEAD_BG: RGB = [250, 240, 217];
 const HALLOWEEN_TABLE_HEAD_TEXT: RGB = [43, 33, 24];
+
+// Palet edisi "End of Year" — cuma dipakai Desember 2026 (lihat isEndOfYearThemeActive
+// di kpr-calculator.ts). Bingkainya (public/invoice-endofyear-frame.png) latar putih
+// dengan aksen bendera merah/kuning & balon navy/emas di atas-bawah saja, jadi palet
+// konten tetap navy/emas seperti DEFAULT — cuma border & zebra dihangatkan dikit biar
+// nyambung sama warna bingkai, bukan desain baru dari nol.
+const ENDOFYEAR_BORDER: RGB = [232, 210, 175];
+const ENDOFYEAR_ZEBRA: RGB = [250, 244, 232];
 
 /** Gambar manual "harga dicoret → harga setelah subsidi" + keterangan kecil di
  * bawahnya, dipakai untuk sel tabel yang kena subsidi Angsuran OctoBoo! —
@@ -98,29 +113,42 @@ export async function generateInvoicePdf(
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
-  // Tema "OctoBoo!" cuma aktif Oktober 2026 — di luar itu (termasuk November
-  // 2026, selama promo diskon/subsidinya masih diperpanjang) invoice balik ke
-  // desain navy/emas biasa secara otomatis, tanpa perlu saklar manual.
-  const themed = isOctoBooThemeActive();
-  const NAVY = themed ? HALLOWEEN_INK : DEFAULT_NAVY;
-  const GOLD = themed ? HALLOWEEN_ACCENT : DEFAULT_GOLD;
-  const MUTED = themed ? HALLOWEEN_MUTED : DEFAULT_MUTED;
-  const INK = themed ? HALLOWEEN_INK : DEFAULT_INK;
-  const BORDER = themed ? HALLOWEEN_BORDER : DEFAULT_BORDER;
-  const ZEBRA = themed ? HALLOWEEN_ZEBRA : DEFAULT_ZEBRA;
-  const TABLE_HEAD_BG = themed ? HALLOWEEN_TABLE_HEAD_BG : DEFAULT_NAVY;
-  const TABLE_HEAD_TEXT = themed ? HALLOWEEN_TABLE_HEAD_TEXT : ([255, 255, 255] as RGB);
+  // Tema musiman full-bleed (bingkai gambar, bukan digambar manual) — paling banyak
+  // SATU yang aktif dalam satu waktu, masing-masing cuma di bulan tertentu. Di luar
+  // itu invoice balik ke desain navy/emas biasa secara otomatis, tanpa saklar manual.
+  // Nambah tema baru: tambah entri di sini + palet & gambar bingkainya sendiri —
+  // jangan ubah urutan pengecekan di bawah supaya tema paling awal tahun yang
+  // menang kalau suatu saat ada dua yang (seharusnya tidak) tumpang tindih.
+  type SeasonalTheme = "octoboo" | "endofyear" | null;
+  const seasonalTheme: SeasonalTheme = isOctoBooThemeActive()
+    ? "octoboo"
+    : isEndOfYearThemeActive()
+      ? "endofyear"
+      : null;
+  const themed = seasonalTheme !== null;
 
-  // Margin & titik mulai konten disesuaikan kalau tema aktif, supaya konten tidak
-  // menabrak ilustrasi bingkai (banner atas & rumah hantu bawah) — bingkainya sendiri
-  // adalah gambar full-bleed (public/invoice-octoboo-frame.png), bukan digambar manual.
-  const margin = themed ? 16 : 12;
-  const contentStartY = themed ? 80 : 31;
+  const NAVY = seasonalTheme === "octoboo" ? HALLOWEEN_INK : DEFAULT_NAVY;
+  const GOLD = seasonalTheme === "octoboo" ? HALLOWEEN_ACCENT : DEFAULT_GOLD;
+  const MUTED = seasonalTheme === "octoboo" ? HALLOWEEN_MUTED : DEFAULT_MUTED;
+  const INK = seasonalTheme === "octoboo" ? HALLOWEEN_INK : DEFAULT_INK;
+  const BORDER = seasonalTheme === "octoboo" ? HALLOWEEN_BORDER : seasonalTheme === "endofyear" ? ENDOFYEAR_BORDER : DEFAULT_BORDER;
+  const ZEBRA = seasonalTheme === "octoboo" ? HALLOWEEN_ZEBRA : seasonalTheme === "endofyear" ? ENDOFYEAR_ZEBRA : DEFAULT_ZEBRA;
+  const TABLE_HEAD_BG = seasonalTheme === "octoboo" ? HALLOWEEN_TABLE_HEAD_BG : DEFAULT_NAVY;
+  const TABLE_HEAD_TEXT = seasonalTheme === "octoboo" ? HALLOWEEN_TABLE_HEAD_TEXT : ([255, 255, 255] as RGB);
 
-  // Invoice bertema WAJIB 1 halaman (tidak boleh ada halaman ke-2) — jadi semua ukuran
-  // font/spacing vertikal di-rapatkan sedikit (SCALE) dan logic pindah halaman di bawah
-  // dimatikan total untuk tema ini, apa pun panjang kontennya.
-  const SCALE = themed ? 0.82 : 1;
+  // Margin & titik mulai konten disesuaikan per tema, supaya konten tidak menabrak
+  // ilustrasi bingkainya masing-masing (gambar full-bleed di public/, bukan digambar
+  // manual). Bingkai "End of Year" jauh lebih lega (dekorasi cuma di ~19% atas/bawah
+  // halaman) dibanding "OctoBoo!" (banner Halloween lebih tebal), jadi marginnya beda.
+  const margin = seasonalTheme === "octoboo" ? 16 : seasonalTheme === "endofyear" ? 12 : 12;
+  const contentStartY = seasonalTheme === "octoboo" ? 80 : seasonalTheme === "endofyear" ? 66 : 31;
+
+  // Invoice bertema WAJIB 1 halaman (tidak boleh ada halaman ke-2, karena bingkainya
+  // gambar statis yang cuma digambar sekali di halaman pertama) — logic pindah
+  // halaman di bawah dimatikan total untuk SEMUA tema musiman, apa pun panjang
+  // kontennya. "OctoBoo!" perlu kompensasi SCALE karena bingkainya lebih sempit;
+  // "End of Year" punya cukup ruang jadi tetap ukuran normal (SCALE 1).
+  const SCALE = seasonalTheme === "octoboo" ? 0.82 : 1;
   const s = (n: number) => n * SCALE;
 
   const gap = s(3.5);
@@ -129,15 +157,15 @@ export async function generateInvoicePdf(
   const rightX = margin + colWidth + gap;
   let y = 0;
 
-  async function drawOctoBooFrame(): Promise<void> {
-    const frame = await loadImageDataUrl("/invoice-octoboo-frame.png");
+  async function drawSeasonalFrame(path: string): Promise<void> {
+    const frame = await loadImageDataUrl(path);
     if (frame) {
       doc.addImage(frame, "PNG", 0, 0, pageWidth, pageHeight);
     }
   }
 
-  if (themed) {
-    await drawOctoBooFrame();
+  if (seasonalTheme) {
+    await drawSeasonalFrame(seasonalTheme === "octoboo" ? "/invoice-octoboo-frame.png" : "/invoice-endofyear-frame.png");
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(...MUTED);
@@ -336,7 +364,7 @@ export async function generateInvoicePdf(
     ]);
   if (result.promoSubsidiAngsuranAktif)
     termRows.push([
-      themed ? "Promo OctoBOO!" : "Promo Spesial",
+      seasonalTheme === "octoboo" ? "Promo OctoBOO!" : "Promo Spesial",
       `Subsidi Angsuran ${formatRupiah(result.subsidiAngsuranNominal)} Selama ${result.subsidiAngsuranBulan} Bulan`,
     ]);
 
@@ -499,8 +527,14 @@ export async function generateInvoicePdf(
   doc.roundedRect(margin, y, pageWidth - margin * 2, footY - y + 2, 1.5, 1.5, "S");
 
   // ---- Footer page numbers ----
+  // Untuk tema musiman, posisi default (jarak tetap dari bawah halaman) cuma aman
+  // untuk konten ringan — skenario berat (mis. KPR Berjenjang 3 periode) bisa bikin
+  // kartu S&K tumbuh sampai nomor halamannya kepotong/numpuk sama border kartu.
+  // Makanya selalu diturunkan lagi kalau kartunya (footY) lebih rendah dari posisi
+  // defaultnya, supaya nomor halaman selalu di BAWAH kartu, bukan di posisi tetap.
   const pageCount = doc.getNumberOfPages();
-  const pageNumY = themed ? pageHeight - 46 : pageHeight - 7;
+  const pageNumYDefault = seasonalTheme === "octoboo" ? pageHeight - 46 : seasonalTheme === "endofyear" ? pageHeight - 62 : pageHeight - 7;
+  const pageNumY = themed ? Math.max(pageNumYDefault, footY + 2 + s(4)) : pageNumYDefault;
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(7);
